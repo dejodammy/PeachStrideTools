@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+client/dist/
+
+# Runtime campaign data (recipient lists, generated PDFs, send logs — not source)
+server/data/campaigns/*
+!server/data/campaigns/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local env files (never commit SMTP credentials)
+.env
+.env.local
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db

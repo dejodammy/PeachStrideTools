@@ -1,5 +1,0 @@
-{% extends 'base.html' %}
-{% block content %}
-<section class="result-head"><p class="eyebrow">CAMPAIGN FINISHED</p><h1>{{ sent }} email{{ '' if sent == 1 else 's' }} sent.</h1><p class="lead">{{ failures|length }} delivery issue{{ '' if failures|length == 1 else 's' }} recorded.</p></section>
-{% if failures %}<section class="failure-list"><h2>Issues</h2>{% for failure in failures %}<p>{{ failure }}</p>{% endfor %}</section>{% endif %}<a class="primary-link" href="{{ url_for('home') }}">Return to workspace</a>
-{% endblock %}

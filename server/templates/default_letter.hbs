@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @page { size: A4; margin: 0; }
+      body {
+        font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 11.5pt;
+        color: #1a1a1a;
+        line-height: 1.55;
+        margin: 0;
+        padding: 2.6cm 2.2cm;
+      }
+      .letterhead {
+        border-bottom: 3px solid #0b6e4f;
+        padding-bottom: 14px;
+        margin-bottom: 30px;
+      }
+      .letterhead .company {
+        font-size: 18pt;
+        font-weight: 700;
+        color: #0b6e4f;
+        letter-spacing: 0.3px;
+      }
+      .letterhead .tagline {
+        font-size: 9.5pt;
+        color: #666;
+        margin-top: 2px;
+      }
+      .date {
+        text-align: right;
+        color: #555;
+        margin-bottom: 26px;
+        font-size: 10.5pt;
+      }
+      .greeting {
+        margin-bottom: 16px;
+        font-weight: 600;
+      }
+      .body p {
+        margin: 0 0 13px 0;
+        text-align: justify;
+      }
+      table.details {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 18px 0;
+      }
+      table.details td {
+        border: 1px solid #d5d5d5;
+        padding: 7px 12px;
+        font-size: 10.5pt;
+      }
+      table.details td:first-child {
+        background: #f3f7f5;
+        font-weight: 600;
+        width: 35%;
+      }
+      .signature {
+        margin-top: 46px;
+      }
+      .signature .name {
+        font-weight: 700;
+        color: #0b6e4f;
+      }
+      .footer {
+        margin-top: 60px;
+        font-size: 8pt;
+        color: #999;
+        border-top: 1px solid #e5e5e5;
+        padding-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="letterhead">
+      <div class="company">Peachstrides &amp; Pristine</div>
+      <div class="tagline">Recruitment &amp; HR Services</div>
+    </div>
+
+    <div class="date">{{Date}}</div>
+
+    <div class="greeting">Dear {{Name}},</div>
+
+    <div class="body">
+      <p>
+        Replace this paragraph with your letter's content. Reference any column from your
+        uploaded spreadsheet as <code>{{ColumnName}}</code> if the header has no spaces
+        (e.g. <code>{{Location}}</code>), or <code>{{lookup this "Column Name"}}</code> if it
+        does (e.g. <code>{{lookup this "Full Name"}}</code>).
+      </p>
+      <p>
+        Example: this letter concerns your role in {{Location}}.
+      </p>
+    </div>
+
+    <table class="details">
+      <tr><td>Name</td><td>{{Name}}</td></tr>
+      <tr><td>Email</td><td>{{Email}}</td></tr>
+      <tr><td>Location</td><td>{{Location}}</td></tr>
+    </table>
+
+    <div class="signature">
+      <p>Regards,</p>
+      <p class="name">Peachstrides &amp; Pristine Recruitment Team</p>
+    </div>
+
+    <div class="footer">
+      This document was generated for {{Email}}.
+    </div>
+  </body>
+</html>
