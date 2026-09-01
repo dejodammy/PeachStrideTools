@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">People operations, without the spreadsheet scramble</p>
+  <h1>Recruitment work,<br><em>made runnable.</em></h1>
+  <p class="lead">Extract candidate contact details or prepare a controlled email campaign from one clear workspace.</p>
+  <div class="hero-links"><a href="#extract">Extract CVs</a><a href="#campaign">Prepare campaign</a></div>
+</section>
+<section class="tools">
+  <article id="extract" class="card">
+    <p class="number">01 / CV INTAKE</p>
+    <h2>Turn CVs into a usable list.</h2>
+    <p>Upload PDF and Word CVs. We will detect names, email addresses and phone numbers, then generate an Excel file.</p>
+    <form action="{{ url_for('extract_cvs') }}" method="post" enctype="multipart/form-data">
+      <label class="file-input">Select CV files<input type="file" name="cvs" accept=".pdf,.docx" multiple required></label>
+      <button type="submit">Extract details <span>→</span></button>
+    </form>
+  </article>
+  <article id="campaign" class="card dark-card">
+    <p class="number">02 / OUTREACH</p>
+    <h2>Send a reviewed campaign.</h2>
+    <p>Upload an Excel recipient list. Check the recipients first, then enter your email settings only when you are ready to send.</p>
+    <form action="{{ url_for('preview_campaign') }}" method="post" enctype="multipart/form-data">
+      <fieldset><legend>Campaign type</legend><label><input type="radio" name="campaign_type" value="document" checked> Document request</label><label><input type="radio" name="campaign_type" value="assessment"> Assessment outcome</label></fieldset>
+      <label class="file-input">Recipient spreadsheet<input type="file" name="spreadsheet" accept=".xlsx,.xls" required></label>
+      <label class="file-input secondary">Attachment, if needed<input type="file" name="attachment"></label>
+      <button type="submit">Review recipients <span>→</span></button>
+    </form>
+    <small>Columns: <code>Name</code>, <code>Email</code>; document requests also need <code>Location</code>.</small>
+  </article>
+</section>
+{% endblock %}
