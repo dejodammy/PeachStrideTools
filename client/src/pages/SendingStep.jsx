@@ -38,15 +38,38 @@ export default function SendingStep({ campaignId, onDone }) {
 
   return (
     <div className="card">
-      <h2>3. Sending…</h2>
+      <h2>
+        <span className="pulse-dot" />
+        Sending your campaign
+      </h2>
+      <p className="lede">Keep this tab open, or come back later — sending continues on the server either way.</p>
+
+      <div className="progress-header">
+        <span className="hint" style={{ margin: 0 }}>
+          {processed} of {status.total} processed
+        </span>
+        <span className="progress-pct">{pct}%</span>
+      </div>
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
-      <p className="summary">
-        {processed} / {status.total} processed — <strong>{status.sent}</strong> sent, <strong>{status.failed}</strong> failed
-      </p>
-      {error && <div className="banner error">{error}</div>}
-      <p className="hint">You can leave this page open — sending continues on the server either way.</p>
+
+      <div className="progress-stats">
+        <div className="stat">
+          <div className="num">{status.sent}</div>
+          <div className="label">Sent</div>
+        </div>
+        <div className="stat">
+          <div className="num">{status.failed}</div>
+          <div className="label">Failed</div>
+        </div>
+        <div className="stat">
+          <div className="num">{status.total - processed}</div>
+          <div className="label">Remaining</div>
+        </div>
+      </div>
+
+      {error && <div className="banner error" style={{ marginTop: 20 }}>{error}</div>}
     </div>
   );
 }

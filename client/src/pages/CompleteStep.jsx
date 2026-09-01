@@ -1,11 +1,15 @@
 import { logCsvUrl } from "../api.js";
+import { IconCheck, IconDownload, IconSparkle } from "../icons.jsx";
 
 export default function CompleteStep({ campaignId, status, onRestart }) {
   return (
     <div className="card">
-      <h2>4. Done</h2>
+      <div className="result-icon">
+        <IconCheck />
+      </div>
+      <h2>Campaign sent</h2>
       <p className="summary">
-        Finished — <strong>{status.sent}</strong> sent, <strong>{status.failed}</strong> failed, out of {status.total} recipient(s).
+        <strong>{status.sent}</strong> sent, <strong>{status.failed}</strong> failed, out of {status.total} recipient(s).
       </p>
 
       {status.failed > 0 && (
@@ -16,10 +20,10 @@ export default function CompleteStep({ campaignId, status, onRestart }) {
 
       <div className="actions">
         <a className="secondary" href={logCsvUrl(campaignId)}>
-          Download send log (CSV)
+          <IconDownload width={15} height={15} /> Download send log
         </a>
         <button type="button" className="primary" onClick={onRestart}>
-          Start a new campaign
+          <IconSparkle width={14} height={14} /> Start a new campaign
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@ import ComposeStep from "./pages/ComposeStep.jsx";
 import PreviewStep from "./pages/PreviewStep.jsx";
 import SendingStep from "./pages/SendingStep.jsx";
 import CompleteStep from "./pages/CompleteStep.jsx";
+import { IconMail, IconCheck } from "./icons.jsx";
 
 const STEPS = ["Compose", "Preview & send", "Sending", "Done"];
 
@@ -20,13 +21,18 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Bulk Mailer</h1>
-        <p>Upload a recipient list, compose one email, optionally attach a personalized PDF, and send.</p>
+        <div className="kicker">
+          <IconMail width={14} height={14} />
+          Bulk Mailer
+        </div>
+        <h1>Send a personalized campaign</h1>
+        <p>Upload a recipient list, compose one email, optionally attach a personalized PDF per recipient, and send.</p>
       </header>
 
       <ol className="steps">
         {STEPS.map((label, i) => (
           <li key={label} className={i === step ? "active" : i < step ? "done" : ""}>
+            {i < step && <IconCheck className="step-check" />}
             {label}
           </li>
         ))}

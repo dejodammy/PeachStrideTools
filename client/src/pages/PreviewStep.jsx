@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { previewPdfUrl, startSend } from "../api.js";
+import { IconArrowLeft, IconExternal, IconFileText, IconPaperclip } from "../icons.jsx";
 
 export default function PreviewStep({ campaign, onStarted, onBack }) {
   const [sender, setSender] = useState("");
@@ -38,17 +39,18 @@ export default function PreviewStep({ campaign, onStarted, onBack }) {
 
   return (
     <div className="card">
-      <h2>2. Preview &amp; send</h2>
-
+      <h2>Preview &amp; send</h2>
       <p className="summary">
-        <strong>{campaign.recipientCount}</strong> recipient(s) ready to send.
+        <strong>{campaign.recipientCount}</strong> recipient{campaign.recipientCount === 1 ? "" : "s"} ready to send.
         {campaign.droppedCount > 0 && ` (${campaign.droppedCount} row(s) skipped — no email address.)`}
       </p>
 
       <div className="preview-block">
-        <h3>Sample email (recipient #1)</h3>
-        <div className="preview-subject">{campaign.subjectPreview}</div>
-        <div className="preview-body">{campaign.bodyPreview}</div>
+        <h3>Sample email — recipient #1</h3>
+        <div className="email-preview">
+          <div className="email-subject">{campaign.subjectPreview}</div>
+          <div className="email-body">{campaign.bodyPreview}</div>
+        </div>
       </div>
 
       {campaign.hasPdfTemplate && (
@@ -57,9 +59,16 @@ export default function PreviewStep({ campaign, onStarted, onBack }) {
           {campaign.pdfPreviewError ? (
             <div className="banner error">Template failed to render: {campaign.pdfPreviewError}</div>
           ) : (
-            <a className="secondary" href={previewPdfUrl(campaign.id)} target="_blank" rel="noreferrer">
-              Open PDF preview (recipient #1) ↗
-            </a>
+            <div className="attachment-row">
+              <span className="icon"><IconFileText /></span>
+              <span className="meta">
+                <span className="name">Generated per recipient</span>
+                <span className="sub">One unique PDF attached to each email</span>
+              </span>
+              <a className="link" href={previewPdfUrl(campaign.id)} target="_blank" rel="noreferrer">
+                Preview <IconExternal width={13} height={13} />
+              </a>
+            </div>
           )}
         </div>
       )}
@@ -67,12 +76,18 @@ export default function PreviewStep({ campaign, onStarted, onBack }) {
       {campaign.hasSharedAttachment && (
         <div className="preview-block">
           <h3>Shared attachment</h3>
-          <p>{campaign.sharedAttachmentName} (sent to every recipient)</p>
+          <div className="attachment-row">
+            <span className="icon"><IconPaperclip /></span>
+            <span className="meta">
+              <span className="name">{campaign.sharedAttachmentName}</span>
+              <span className="sub">Sent to every recipient</span>
+            </span>
+          </div>
         </div>
       )}
 
       <div className="preview-block">
-        <h3>Recipients (first {Math.min(10, campaign.sampleRows.length)} of {campaign.recipientCount})</h3>
+        <h3>Recipients — first {Math.min(10, campaign.sampleRows.length)} of {campaign.recipientCount}</h3>
         <div className="table-wrap">
           <table>
             <thead>
@@ -94,6 +109,8 @@ export default function PreviewStep({ campaign, onStarted, onBack }) {
           </table>
         </div>
       </div>
+
+      <hr className="section-divider" />
 
       <form className="send-form" onSubmit={handleSend}>
         <h3>Send campaign</h3>
@@ -120,7 +137,7 @@ export default function PreviewStep({ campaign, onStarted, onBack }) {
             <input type="number" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
           </label>
           <label className="field">
-            <span>Delay between emails (seconds)</span>
+            <span>Delay between emails (sec)</span>
             <input type="number" min="0" step="0.5" value={delaySeconds} onChange={(e) => setDelaySeconds(e.target.value)} />
           </label>
         </div>
@@ -134,7 +151,7 @@ export default function PreviewStep({ campaign, onStarted, onBack }) {
 
         <div className="actions">
           <button type="button" className="secondary" onClick={onBack}>
-            ← Start over
+            <IconArrowLeft width={15} height={15} /> Start over
           </button>
           <button type="submit" className="primary" disabled={loading}>
             {loading ? "Starting…" : `Send to ${campaign.recipientCount} recipient(s)`}

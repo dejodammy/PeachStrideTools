@@ -1,8 +1,26 @@
 import { useState } from "react";
 import { createCampaign, getDefaultTemplate } from "../api.js";
+import { IconUpload, IconPaperclip, IconSparkle } from "../icons.jsx";
 
-const PLACEHOLDER_HELP =
-  'Reference spreadsheet columns as {{ColumnName}} (no spaces) or {{lookup this "Column Name"}} (works for any header, including ones with spaces).';
+const PLACEHOLDER_HELP = (
+  <>
+    Reference spreadsheet columns as <code>{"{{ColumnName}}"}</code> (no spaces) or{" "}
+    <code>{'{{lookup this "Column Name"}}'}</code> (works for any header, including ones with spaces).
+  </>
+);
+
+function FileDrop({ label, hint, file, accept, onChange, icon }) {
+  return (
+    <label className="file-drop">
+      <input type="file" accept={accept} onChange={(e) => onChange(e.target.files[0] || null)} />
+      <span className="icon">{icon}</span>
+      <span className="text">
+        <span className="primary-text">{file ? file.name : label}</span>
+        <span className="secondary-text">{file ? `${(file.size / 1024).toFixed(0)} KB — click to change` : hint}</span>
+      </span>
+    </label>
+  );
+}
 
 export default function ComposeStep({ onCreated }) {
   const [recipients, setRecipients] = useState(null);
@@ -55,17 +73,22 @@ export default function ComposeStep({ onCreated }) {
 
   return (
     <form className="card" onSubmit={handleSubmit}>
-      <h2>1. Compose your campaign</h2>
+      <h2>Compose your campaign</h2>
+      <p className="lede">Set up the recipient list and the message once — it's personalized per recipient at send time.</p>
 
       <label className="field">
-        <span>Recipient spreadsheet (.xlsx or .xls)</span>
-        <input
-          type="file"
+        <span>Recipient spreadsheet</span>
+        <FileDrop
+          label="Choose a .xlsx or .xls file"
+          hint='Must have a column named exactly "Email".'
+          file={recipients}
           accept=".xlsx,.xls"
-          onChange={(e) => setRecipients(e.target.files[0] || null)}
+          onChange={setRecipients}
+          icon={<IconUpload />}
         />
-        <small>Must have a column named exactly "Email". Any other columns can be used as placeholders below.</small>
       </label>
+
+      <hr className="section-divider" />
 
       <label className="field">
         <span>Subject</span>
@@ -90,21 +113,35 @@ export default function ComposeStep({ onCreated }) {
 
       <label className="field">
         <span>Attach a file to every email (optional)</span>
-        <input type="file" onChange={(e) => setAttachment(e.target.files[0] || null)} />
-        <small>The same file is attached to every recipient (e.g. a guarantor form).</small>
+        <FileDrop
+          label="Choose a file"
+          hint="The same file is attached to every recipient (e.g. a guarantor form)."
+          file={attachment}
+          onChange={setAttachment}
+          icon={<IconPaperclip />}
+        />
       </label>
 
-      <label className="field checkbox">
+      <hr className="section-divider" />
+
+      <div className="field checkbox-field">
         <input
+          id="pdf-toggle"
           type="checkbox"
           checked={pdfEnabled}
           onChange={(e) => handlePdfToggle(e.target.checked)}
         />
-        <span>Generate a personalized PDF for each recipient</span>
-      </label>
+        <label htmlFor="pdf-toggle">
+          <span className="title">
+            <IconSparkle width={14} height={14} style={{ marginRight: 5, verticalAlign: -2 }} />
+            Generate a personalized PDF for each recipient
+          </span>
+          <span className="desc">Attaches a unique PDF built from the template below, filled in per recipient.</span>
+        </label>
+      </div>
 
       {pdfEnabled && (
-        <label className="field">
+        <label className="field" style={{ marginTop: 20 }}>
           <span>PDF template (HTML)</span>
           <textarea
             className="mono"
@@ -118,7 +155,7 @@ export default function ComposeStep({ onCreated }) {
 
       {error && <div className="banner error">{error}</div>}
 
-      <button type="submit" className="primary" disabled={loading}>
+      <button type="submit" className="primary" disabled={loading} style={{ width: "100%", marginTop: 8 }}>
         {loading ? "Processing…" : "Continue to preview"}
       </button>
     </form>
