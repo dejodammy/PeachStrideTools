@@ -1,13 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createCampaign, getDefaultTemplate } from "../api.js";
 import { IconUpload, IconPaperclip, IconSparkle } from "../icons.jsx";
-
-const PLACEHOLDER_HELP = (
-  <>
-    Reference spreadsheet columns as <code>{"{{ColumnName}}"}</code> (no spaces) or{" "}
-    <code>{'{{lookup this "Column Name"}}'}</code> (works for any header, including ones with spaces).
-  </>
-);
+import PlaceholderChips from "../components/PlaceholderChips.jsx";
+import { readSpreadsheetColumns } from "../utils/readSpreadsheetColumns.js";
+import { insertAtCursor, placeholderToken } from "../utils/placeholders.js";
 
 function FileDrop({ label, hint, file, accept, onChange, icon }) {
   return (
@@ -24,6 +20,8 @@ function FileDrop({ label, hint, file, accept, onChange, icon }) {
 
 export default function ComposeStep({ onCreated }) {
   const [recipients, setRecipients] = useState(null);
+  const [columns, setColumns] = useState([]);
+  const [columnsError, setColumnsError] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [attachment, setAttachment] = useState(null);
@@ -31,6 +29,30 @@ export default function ComposeStep({ onCreated }) {
   const [pdfTemplate, setPdfTemplate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const subjectRef = useRef(null);
+  const bodyRef = useRef(null);
+  const templateRef = useRef(null);
+
+  async function handleRecipientsChange(file) {
+    setRecipients(file);
+    setColumns([]);
+    setColumnsError("");
+    if (!file) return;
+    try {
+      const cols = await readSpreadsheetColumns(file);
+      if (!cols.includes("Email")) {
+        setColumnsError('No column named exactly "Email" was found — check your spreadsheet headers.');
+      }
+      setColumns(cols);
+    } catch {
+      setColumnsError("Could not read that file's columns — it will still be validated when you continue.");
+    }
+  }
+
+  function insertInto(ref, value, setValue, column) {
+    insertAtCursor(ref.current, value, setValue, placeholderToken(column));
+  }
 
   async function handlePdfToggle(checked) {
     setPdfEnabled(checked);
@@ -83,9 +105,10 @@ export default function ComposeStep({ onCreated }) {
           hint='Must have a column named exactly "Email".'
           file={recipients}
           accept=".xlsx,.xls"
-          onChange={setRecipients}
+          onChange={handleRecipientsChange}
           icon={<IconUpload />}
         />
+        {columnsError && <small style={{ color: "var(--danger)" }}>{columnsError}</small>}
       </label>
 
       <hr className="section-divider" />
@@ -93,22 +116,29 @@ export default function ComposeStep({ onCreated }) {
       <label className="field">
         <span>Subject</span>
         <input
+          ref={subjectRef}
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder='e.g. Request for Supporting Documents - {{lookup this "Role"}}'
+          placeholder="e.g. Request for Supporting Documents"
+        />
+        <PlaceholderChips
+          columns={columns}
+          onInsert={(col) => insertInto(subjectRef, subject, setSubject, col)}
+          emptyHint="Choose a spreadsheet above to insert its columns here."
         />
       </label>
 
       <label className="field">
         <span>Body</span>
         <textarea
+          ref={bodyRef}
           rows={8}
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder={`Dear {{Name}},\n\nWrite your message here...`}
+          placeholder={`Dear ...,\n\nWrite your message here...`}
         />
-        <small>{PLACEHOLDER_HELP}</small>
+        <PlaceholderChips columns={columns} onInsert={(col) => insertInto(bodyRef, body, setBody, col)} />
       </label>
 
       <label className="field">
@@ -144,12 +174,17 @@ export default function ComposeStep({ onCreated }) {
         <label className="field" style={{ marginTop: 20 }}>
           <span>PDF template (HTML)</span>
           <textarea
+            ref={templateRef}
             className="mono"
             rows={16}
             value={pdfTemplate}
             onChange={(e) => setPdfTemplate(e.target.value)}
           />
-          <small>{PLACEHOLDER_HELP} A starter letter template has been filled in for you — edit it freely.</small>
+          <PlaceholderChips
+            columns={columns}
+            onInsert={(col) => insertInto(templateRef, pdfTemplate, setPdfTemplate, col)}
+          />
+          <small>A starter letter template has been filled in for you — edit it freely, or click a field above to insert it at your cursor.</small>
         </label>
       )}
 
