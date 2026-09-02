@@ -262,7 +262,7 @@ router.post("/:id/send", express.json(), async (req, res) => {
 
   const accounts = [];
   for (const def of accountDefs) {
-    const transport = createTransport({ server, port, sender: def.email, password: def.password });
+    const transport = await createTransport({ server, port, sender: def.email, password: def.password });
     try {
       await transport.verify();
     } catch (err) {
