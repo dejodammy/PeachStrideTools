@@ -1,3 +1,4 @@
+import "dotenv/config"; // must load before anything that reads MAIL_ACCOUNT_* env vars
 import express from "express";
 import cors from "cors";
 import path from "node:path";

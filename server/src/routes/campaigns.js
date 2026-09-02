@@ -8,6 +8,7 @@ import { renderText, renderHtml } from "../services/templating.js";
 import { htmlToPdf } from "../services/pdf.js";
 import { createTransport, sendOne, sleep } from "../services/mailer.js";
 import { DAILY_SEND_CAP, getUsage, recordSend } from "../services/senderUsage.js";
+import { getAccount } from "../services/accounts.js";
 import {
   campaignExists,
   createCampaignDir,
@@ -176,15 +177,21 @@ router.post("/:id/send", express.json(), async (req, res) => {
     return res.status(409).json({ error: "This campaign already finished sending. Create a new campaign to resend." });
   }
 
-  const { sender, password, backupSender, backupPassword, smtpServer, smtpPort, delaySeconds, confirmation } = req.body;
+  const { accountId, backupAccountId, smtpServer, smtpPort, delaySeconds, confirmation } = req.body;
   if (confirmation !== "SEND") {
     return res.status(400).json({ error: 'Type SEND (all caps) to confirm.' });
   }
-  if (!sender || !password) {
-    return res.status(400).json({ error: "Enter the sender email and app password." });
+  const primaryAccount = getAccount(accountId);
+  if (!primaryAccount) {
+    return res.status(400).json({ error: "Choose a sender account (configure one in server/.env if the list is empty)." });
   }
-  if ((backupSender && !backupPassword) || (backupPassword && !backupSender)) {
-    return res.status(400).json({ error: "The backup account needs both an email and an app password." });
+  let backupAccount = null;
+  if (backupAccountId) {
+    backupAccount = getAccount(backupAccountId);
+    if (!backupAccount) return res.status(400).json({ error: "Unknown backup account." });
+    if (backupAccount.id === primaryAccount.id) {
+      return res.status(400).json({ error: "Backup account must be different from the sender account." });
+    }
   }
   const port = Number(smtpPort) || 587;
   const delayMs = Math.max(0, Number(delaySeconds) || 0) * 1000;
@@ -205,10 +212,10 @@ router.post("/:id/send", express.json(), async (req, res) => {
   const remaining = rows.filter((r) => !alreadySent.has(r.Email));
 
   // Each Gmail account has its own rolling-24h send cap. Verify every configured
-  // account up front and load its current usage, so a typo or an already-exhausted
-  // account is caught before anything is sent, not partway through the campaign.
-  const accountDefs = [{ email: sender, password, label: "sender" }];
-  if (backupSender) accountDefs.push({ email: backupSender, password: backupPassword, label: "backup account" });
+  // account up front and load its current usage, so a login problem is caught
+  // before anything is sent, not partway through the campaign.
+  const accountDefs = [{ ...primaryAccount, label: "sender" }];
+  if (backupAccount) accountDefs.push({ ...backupAccount, label: "backup account" });
 
   const accounts = [];
   for (const def of accountDefs) {

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getSenderUsage } from "../api.js";
+import { useEffect, useState } from "react";
+import { getAccounts, getSenderUsage } from "../api.js";
 import { IconArrowLeft } from "../icons.jsx";
 
 function QuotaHint({ usage, checking }) {
@@ -13,11 +13,10 @@ function QuotaHint({ usage, checking }) {
 }
 
 export default function SendForm({ recipientCount, submitLabel, onSubmit, onCancel, cancelLabel = "← Start over" }) {
-  const [sender, setSender] = useState("");
-  const [password, setPassword] = useState("");
+  const [accounts, setAccounts] = useState(null); // null = still loading
+  const [accountId, setAccountId] = useState("");
   const [backupEnabled, setBackupEnabled] = useState(false);
-  const [backupSender, setBackupSender] = useState("");
-  const [backupPassword, setBackupPassword] = useState("");
+  const [backupAccountId, setBackupAccountId] = useState("");
   const [smtpServer, setSmtpServer] = useState("smtp.gmail.com");
   const [smtpPort, setSmtpPort] = useState("587");
   const [delaySeconds, setDelaySeconds] = useState("2");
@@ -29,12 +28,24 @@ export default function SendForm({ recipientCount, submitLabel, onSubmit, onCanc
   const [checkingUsage, setCheckingUsage] = useState(false);
   const [checkingBackupUsage, setCheckingBackupUsage] = useState(false);
 
+  useEffect(() => {
+    getAccounts()
+      .then(({ accounts: list }) => {
+        setAccounts(list);
+        if (list.length > 0) {
+          setAccountId(list[0].id);
+          checkUsage(list[0].email, setUsage, setCheckingUsage);
+        }
+      })
+      .catch(() => setAccounts([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function checkUsage(email, setUsageFn, setCheckingFn) {
-    if (!email.trim() || !email.includes("@")) return;
+    if (!email) return setUsageFn(null);
     setCheckingFn(true);
     try {
-      const result = await getSenderUsage(email.trim());
-      setUsageFn(result);
+      setUsageFn(await getSenderUsage(email));
     } catch {
       setUsageFn(null);
     } finally {
@@ -42,22 +53,30 @@ export default function SendForm({ recipientCount, submitLabel, onSubmit, onCanc
     }
   }
 
+  function handleAccountChange(id) {
+    setAccountId(id);
+    const acc = accounts?.find((a) => a.id === id);
+    if (acc) checkUsage(acc.email, setUsage, setCheckingUsage);
+  }
+
+  function handleBackupChange(id) {
+    setBackupAccountId(id);
+    const acc = accounts?.find((a) => a.id === id);
+    if (acc) checkUsage(acc.email, setBackupUsage, setCheckingBackupUsage);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     if (confirmation !== "SEND") return setError("Type SEND (all caps) to confirm.");
-    if (!sender.trim() || !password) return setError("Enter the sender email and app password.");
-    if (backupEnabled && (!backupSender.trim() || !backupPassword)) {
-      return setError("The backup account needs both an email and an app password (or turn it off).");
-    }
+    if (!accountId) return setError("Choose a sender account.");
+    if (backupEnabled && !backupAccountId) return setError("Choose a backup account (or turn the toggle off).");
 
     setLoading(true);
     try {
       await onSubmit({
-        sender: sender.trim(),
-        password,
-        backupSender: backupEnabled ? backupSender.trim() : undefined,
-        backupPassword: backupEnabled ? backupPassword : undefined,
+        accountId,
+        backupAccountId: backupEnabled ? backupAccountId : undefined,
         smtpServer: smtpServer.trim(),
         smtpPort: Number(smtpPort),
         delaySeconds: Number(delaySeconds),
@@ -69,62 +88,91 @@ export default function SendForm({ recipientCount, submitLabel, onSubmit, onCanc
     }
   }
 
+  if (accounts === null) {
+    return (
+      <div className="send-form">
+        <h3>Send campaign</h3>
+        <p className="hint">Loading sender accounts…</p>
+      </div>
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="send-form">
+        <h3>Send campaign</h3>
+        <div className="banner error">
+          No sender accounts are configured. Add MAIL_ACCOUNT_1_EMAIL / MAIL_ACCOUNT_1_PASSWORD (and optionally a
+          second account) to <code>server/.env</code>, then restart the server.
+        </div>
+        {onCancel && (
+          <button type="button" className="secondary" onClick={onCancel}>
+            <IconArrowLeft width={15} height={15} /> {cancelLabel}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const backupOptions = accounts.filter((a) => a.id !== accountId);
+
   return (
     <form className="send-form" onSubmit={handleSubmit}>
       <h3>Send campaign</h3>
       <p className="hint">
-        This sends real emails immediately once confirmed. Use a Gmail App Password, not your normal password — it is
-        never stored. Each Gmail account is capped at 450 sends per rolling 24h; add a second account below to combine
-        capacity.
+        This sends real emails immediately once confirmed. Each account is capped at 450 sends per rolling 24h; add a
+        second account below to combine capacity.
       </p>
 
       <div className="row">
         <label className="field">
-          <span>Sender email</span>
-          <input
-            type="email"
-            value={sender}
-            onChange={(e) => setSender(e.target.value)}
-            onBlur={(e) => checkUsage(e.target.value, setUsage, setCheckingUsage)}
-          />
+          <span>Sender account</span>
+          <select value={accountId} onChange={(e) => handleAccountChange(e.target.value)}>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label} — {a.email}
+              </option>
+            ))}
+          </select>
           <QuotaHint usage={usage} checking={checkingUsage} />
-        </label>
-        <label className="field">
-          <span>App password</span>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
       </div>
 
-      <div className="field checkbox-field">
-        <input
-          id="backup-toggle"
-          type="checkbox"
-          checked={backupEnabled}
-          onChange={(e) => setBackupEnabled(e.target.checked)}
-        />
-        <label htmlFor="backup-toggle">
-          <span className="title">Use a second Gmail account for extra capacity</span>
-          <span className="desc">
-            Once the sender above hits its daily limit, remaining recipients automatically continue on this account.
-          </span>
-        </label>
-      </div>
+      {accounts.length > 1 && (
+        <div className="field checkbox-field">
+          <input
+            id="backup-toggle"
+            type="checkbox"
+            checked={backupEnabled}
+            onChange={(e) => {
+              setBackupEnabled(e.target.checked);
+              if (e.target.checked && !backupAccountId) {
+                const fallback = accounts.find((a) => a.id !== accountId);
+                if (fallback) handleBackupChange(fallback.id);
+              }
+            }}
+          />
+          <label htmlFor="backup-toggle">
+            <span className="title">Use a second account for extra capacity</span>
+            <span className="desc">
+              Once the sender above hits its daily limit, remaining recipients automatically continue on this account.
+            </span>
+          </label>
+        </div>
+      )}
 
       {backupEnabled && (
         <div className="row">
           <label className="field">
-            <span>Backup sender email</span>
-            <input
-              type="email"
-              value={backupSender}
-              onChange={(e) => setBackupSender(e.target.value)}
-              onBlur={(e) => checkUsage(e.target.value, setBackupUsage, setCheckingBackupUsage)}
-            />
+            <span>Backup account</span>
+            <select value={backupAccountId} onChange={(e) => handleBackupChange(e.target.value)}>
+              {backupOptions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label} — {a.email}
+                </option>
+              ))}
+            </select>
             <QuotaHint usage={backupUsage} checking={checkingBackupUsage} />
-          </label>
-          <label className="field">
-            <span>Backup app password</span>
-            <input type="password" value={backupPassword} onChange={(e) => setBackupPassword(e.target.value)} />
           </label>
         </div>
       )}

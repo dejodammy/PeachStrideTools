@@ -48,3 +48,8 @@ export async function getSenderUsage(email) {
   const res = await fetch(`/api/senders/usage?email=${encodeURIComponent(email)}`);
   return handle(res);
 }
+
+export async function getAccounts() {
+  const res = await fetch("/api/senders/accounts");
+  return handle(res);
+}
