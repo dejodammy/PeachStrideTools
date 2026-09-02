@@ -6,6 +6,10 @@ export function createTransport({ server, port, sender, password }) {
     port,
     secure: port === 465, // 465 = implicit TLS; 587 (default) uses STARTTLS
     auth: { user: sender, pass: password },
+    // smtp.gmail.com resolves to both an IPv4 and IPv6 address. Many hosts (Render
+    // included) don't route outbound IPv6, so picking the AAAA record fails instantly
+    // with ENETUNREACH rather than timing out. Force IPv4.
+    family: 4,
     // Generous timeouts: reaching smtp.gmail.com from cloud-hosting IP ranges (Render,
     // Heroku, etc.) is sometimes just slower than from a home/office connection.
     connectionTimeout: 60_000,
