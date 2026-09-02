@@ -84,6 +84,15 @@ export function IconMail(props) {
   );
 }
 
+export function IconClock(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="10" cy="10.5" r="7" />
+      <path d="M10 6.5V10.5L12.8 12" />
+    </svg>
+  );
+}
+
 export function IconSparkle(props) {
   return (
     <svg {...base} {...props}>

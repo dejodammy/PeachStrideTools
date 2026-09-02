@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import campaignsRouter from "./routes/campaigns.js";
+import sendersRouter from "./routes/senders.js";
 import { closeBrowser } from "./services/pdf.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
 app.use("/api/campaigns", campaignsRouter);
+app.use("/api/senders", sendersRouter);
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 

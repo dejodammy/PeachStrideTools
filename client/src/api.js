@@ -43,3 +43,8 @@ export async function getDefaultTemplate() {
   if (!res.ok) throw new Error("Could not load the starter template.");
   return res.text();
 }
+
+export async function getSenderUsage(email) {
+  const res = await fetch(`/api/senders/usage?email=${encodeURIComponent(email)}`);
+  return handle(res);
+}

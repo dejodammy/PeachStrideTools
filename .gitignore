@@ -16,6 +16,9 @@ npm-debug.log*
 .env
 .env.local
 
+# Personal test/demo spreadsheet (contains a real email address)
+demo_recipients.xlsx
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db

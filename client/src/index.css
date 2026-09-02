@@ -781,3 +781,8 @@ tbody tr:hover td {
   width: 26px;
   height: 26px;
 }
+
+.result-icon.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}

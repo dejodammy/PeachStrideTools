@@ -64,7 +64,12 @@ export default function App() {
           />
         )}
         {step === 3 && campaign && finalStatus && (
-          <CompleteStep campaignId={campaign.id} status={finalStatus} onRestart={reset} />
+          <CompleteStep
+            campaignId={campaign.id}
+            status={finalStatus}
+            onRestart={reset}
+            onResumed={() => setStep(2)}
+          />
         )}
       </main>
     </div>

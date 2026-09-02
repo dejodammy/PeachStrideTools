@@ -55,7 +55,7 @@ export function filePath(id, filename) {
   return path.join(campaignDir(id), filename);
 }
 
-const LOG_HEADER = "email,name,status,detail,timestamp\n";
+const LOG_HEADER = "email,name,status,detail,timestamp,sender\n";
 
 function csvEscape(value) {
   const str = String(value ?? "");
@@ -70,7 +70,11 @@ export async function appendLogRow(id, row) {
   if (!fs.existsSync(logPath)) {
     await fsp.writeFile(logPath, LOG_HEADER, "utf8");
   }
-  const line = [row.email, row.name, row.status, row.detail, row.timestamp].map(csvEscape).join(",") + "\n";
+  // `sender` is appended last, after the original columns, so older log files
+  // and any code reading by position (email, _, status) still parse correctly.
+  const line = [row.email, row.name, row.status, row.detail, row.timestamp, row.sender || ""]
+    .map(csvEscape)
+    .join(",") + "\n";
   await fsp.appendFile(logPath, line, "utf8");
 }
 

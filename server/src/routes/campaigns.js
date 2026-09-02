@@ -7,6 +7,7 @@ import { parseRecipients } from "../services/excel.js";
 import { renderText, renderHtml } from "../services/templating.js";
 import { htmlToPdf } from "../services/pdf.js";
 import { createTransport, sendOne, sleep } from "../services/mailer.js";
+import { DAILY_SEND_CAP, getUsage, recordSend } from "../services/senderUsage.js";
 import {
   campaignExists,
   createCampaignDir,
@@ -175,15 +176,19 @@ router.post("/:id/send", express.json(), async (req, res) => {
     return res.status(409).json({ error: "This campaign already finished sending. Create a new campaign to resend." });
   }
 
-  const { sender, password, smtpServer, smtpPort, delaySeconds, confirmation } = req.body;
+  const { sender, password, backupSender, backupPassword, smtpServer, smtpPort, delaySeconds, confirmation } = req.body;
   if (confirmation !== "SEND") {
     return res.status(400).json({ error: 'Type SEND (all caps) to confirm.' });
   }
   if (!sender || !password) {
     return res.status(400).json({ error: "Enter the sender email and app password." });
   }
+  if ((backupSender && !backupPassword) || (backupPassword && !backupSender)) {
+    return res.status(400).json({ error: "The backup account needs both an email and an app password." });
+  }
   const port = Number(smtpPort) || 587;
   const delayMs = Math.max(0, Number(delaySeconds) || 0) * 1000;
+  const server = smtpServer || "smtp.gmail.com";
 
   const meta = await readJson(id, "meta.json");
   const rows = await readJson(id, "recipients.json", []);
@@ -199,11 +204,27 @@ router.post("/:id/send", express.json(), async (req, res) => {
   const alreadySent = await readSentEmails(id);
   const remaining = rows.filter((r) => !alreadySent.has(r.Email));
 
-  const transport = createTransport({ server: smtpServer || "smtp.gmail.com", port, sender, password });
-  try {
-    await transport.verify();
-  } catch (err) {
-    return res.status(400).json({ error: `Could not log in to ${smtpServer}: ${err.message}` });
+  // Each Gmail account has its own rolling-24h send cap. Verify every configured
+  // account up front and load its current usage, so a typo or an already-exhausted
+  // account is caught before anything is sent, not partway through the campaign.
+  const accountDefs = [{ email: sender, password, label: "sender" }];
+  if (backupSender) accountDefs.push({ email: backupSender, password: backupPassword, label: "backup account" });
+
+  const accounts = [];
+  for (const def of accountDefs) {
+    const transport = createTransport({ server, port, sender: def.email, password: def.password });
+    try {
+      await transport.verify();
+    } catch (err) {
+      return res.status(400).json({ error: `Could not log in with the ${def.label} (${def.email}): ${err.message}` });
+    }
+    const used = await getUsage(def.email);
+    accounts.push({ email: def.email, transport, used });
+  }
+  if (accounts.every((a) => a.used >= DAILY_SEND_CAP)) {
+    return res.status(400).json({
+      error: `All configured account(s) have already reached the ${DAILY_SEND_CAP}/24h sending limit. Wait for the rolling window to free up, or add a different account.`,
+    });
   }
 
   runningCampaigns.add(id);
@@ -221,7 +242,17 @@ router.post("/:id/send", express.json(), async (req, res) => {
   (async () => {
     let sent = alreadySent.size;
     let failed = existingStatus?.failed || 0;
+    let accountIndex = 0;
+    let capped = false;
+
     for (let i = 0; i < remaining.length; i += 1) {
+      // Advance past any account that has hit its rolling-24h cap.
+      while (accounts[accountIndex] && accounts[accountIndex].used >= DAILY_SEND_CAP) accountIndex += 1;
+      if (!accounts[accountIndex]) {
+        capped = true;
+        break;
+      }
+      const account = accounts[accountIndex];
       const row = remaining[i];
       try {
         const subject = renderText(meta.subject, row);
@@ -237,14 +268,17 @@ router.post("/:id/send", express.json(), async (req, res) => {
             contentType: "application/pdf",
           });
         }
-        await sendOne(transport, { from: sender, to: row.Email, subject, text, attachments });
+        await sendOne(account.transport, { from: account.email, to: row.Email, subject, text, attachments });
         sent += 1;
+        account.used += 1;
+        await recordSend(account.email);
         await appendLogRow(id, {
           email: row.Email,
           name: row.Name || "",
           status: "sent",
           detail: "",
           timestamp: new Date().toISOString(),
+          sender: account.email,
         });
       } catch (err) {
         failed += 1;
@@ -254,14 +288,26 @@ router.post("/:id/send", express.json(), async (req, res) => {
           status: "failed",
           detail: err.message,
           timestamp: new Date().toISOString(),
+          sender: account.email,
         });
       }
       await writeStatus(id, { total: rows.length, sent, failed, done: false, started: true });
       if (i < remaining.length - 1 && delayMs > 0) await sleep(delayMs);
     }
-    await writeStatus(id, { total: rows.length, sent, failed, done: true, finishedAt: new Date().toISOString() });
+
+    const processed = sent + failed;
+    await writeStatus(id, {
+      total: rows.length,
+      sent,
+      failed,
+      done: true,
+      capped,
+      remaining: rows.length - processed,
+      senders: accounts.map((a) => ({ email: a.email, used: a.used, cap: DAILY_SEND_CAP })),
+      finishedAt: new Date().toISOString(),
+    });
     runningCampaigns.delete(id);
-    transport.close();
+    accounts.forEach((a) => a.transport.close());
   })().catch(async (err) => {
     await writeStatus(id, { total: rows.length, sent: 0, failed: 0, done: true, error: err.message });
     runningCampaigns.delete(id);
