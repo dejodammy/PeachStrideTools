@@ -432,6 +432,152 @@ small code,
   font-style: italic;
 }
 
+/* ---------- PDF region picker ---------- */
+
+.pdf-picker-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.pdf-picker-pages {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.chip.chip-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pdf-canvas-wrap {
+  position: relative;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  line-height: 0;
+  user-select: none;
+}
+
+.pdf-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+}
+
+.pdf-drag-box {
+  position: absolute;
+  border: 1.5px dashed var(--accent);
+  background: rgba(14, 107, 74, 0.12);
+  pointer-events: none;
+}
+
+.pdf-region-box {
+  position: absolute;
+  border: 1.5px solid var(--accent);
+  background: rgba(14, 107, 74, 0.1);
+  pointer-events: none;
+}
+
+.pdf-region-label {
+  position: absolute;
+  top: -20px;
+  left: -1.5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px 4px 4px 0;
+  white-space: nowrap;
+}
+
+.pdf-region-list {
+  margin-top: 16px;
+}
+
+.pdf-region-list h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+}
+
+.pdf-region-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  background: var(--surface);
+}
+
+.pdf-region-row-page {
+  font-size: 12px;
+  color: var(--ink-500);
+  flex: none;
+  width: 54px;
+}
+
+.pdf-region-row select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface);
+}
+
+.pdf-region-remove {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.pdf-region-remove:hover {
+  text-decoration: underline;
+}
+
+.pdf-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pdf-mode-toggle button {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-700);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.pdf-mode-toggle button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 /* ---------- Section divider ---------- */
 
 .section-divider {

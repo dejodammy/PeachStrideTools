@@ -6,6 +6,7 @@ import fs from "node:fs";
 import { parseRecipients } from "../services/excel.js";
 import { renderText, renderHtml } from "../services/templating.js";
 import { htmlToPdf } from "../services/pdf.js";
+import { stampPdf } from "../services/pdfOverlay.js";
 import { createTransport, sendOne, sleep } from "../services/mailer.js";
 import { DAILY_SEND_CAP, getUsage, recordSend } from "../services/senderUsage.js";
 import { getAccount } from "../services/accounts.js";
@@ -38,11 +39,26 @@ function safeFilenamePart(value) {
     .slice(0, 80) || "recipient";
 }
 
+// Renders the campaign's personalized PDF for one recipient row, whichever
+// mode it's using: a hand-written HTML template, or an existing PDF with
+// marked regions to stamp values onto.
+async function generateCampaignPdf(id, meta, row) {
+  if (meta.pdfMode === "overlay") {
+    const sourceBytes = await fs.promises.readFile(filePath(id, "overlay_source.pdf"));
+    const regions = await readJson(id, "overlay_regions.json", []);
+    return Buffer.from(await stampPdf(sourceBytes, regions, row));
+  }
+  const template = await readText(id, "template.html");
+  const html = renderHtml(template, row);
+  return htmlToPdf(html);
+}
+
 router.post(
   "/",
   upload.fields([
     { name: "recipients", maxCount: 1 },
     { name: "attachment", maxCount: 1 },
+    { name: "overlaySource", maxCount: 1 },
   ]),
   async (req, res) => {
     try {
@@ -57,8 +73,27 @@ router.post(
       const { columns, rows, dropped } = parseRecipients(recipientsFile.buffer);
 
       const pdfTemplateEnabled = req.body.pdfTemplateEnabled === "true";
-      const pdfTemplateHtml = pdfTemplateEnabled ? req.body.pdfTemplateHtml || "" : "";
-      if (pdfTemplateEnabled && !pdfTemplateHtml.trim()) {
+      const pdfMode = req.body.pdfMode === "overlay" ? "overlay" : "html";
+      const pdfTemplateHtml = pdfTemplateEnabled && pdfMode === "html" ? req.body.pdfTemplateHtml || "" : "";
+      const overlaySourceFile = req.files?.overlaySource?.[0];
+      let overlayRegions = [];
+      if (pdfTemplateEnabled && pdfMode === "overlay") {
+        if (!overlaySourceFile) {
+          return res.status(400).json({ error: "Upload the PDF you want to mark up." });
+        }
+        try {
+          overlayRegions = JSON.parse(req.body.overlayRegions || "[]");
+        } catch {
+          return res.status(400).json({ error: "Marked regions were malformed — try marking them again." });
+        }
+        if (!Array.isArray(overlayRegions) || overlayRegions.length === 0) {
+          return res.status(400).json({ error: "Mark at least one region on the PDF (e.g. drag a box over the name)." });
+        }
+        const badColumn = overlayRegions.find((r) => !columns.includes(r.column));
+        if (badColumn) {
+          return res.status(400).json({ error: `A marked region refers to a column that isn't in your spreadsheet: "${badColumn.column}".` });
+        }
+      } else if (pdfTemplateEnabled && !pdfTemplateHtml.trim()) {
         return res.status(400).json({ error: "PDF template is enabled but the template is empty." });
       }
 
@@ -74,6 +109,9 @@ router.post(
         columns,
         droppedRows: dropped,
         hasPdfTemplate: pdfTemplateEnabled,
+        pdfMode: pdfTemplateEnabled ? pdfMode : null,
+        overlaySourceName: overlaySourceFile?.originalname || null,
+        overlayRegionCount: overlayRegions.length,
         hasSharedAttachment: Boolean(attachmentFile),
         sharedAttachmentName: attachmentFile?.originalname || null,
         sharedAttachmentMime: attachmentFile?.mimetype || null,
@@ -84,8 +122,12 @@ router.post(
       if (attachmentFile) {
         await fs.promises.writeFile(filePath(id, "attachment.bin"), attachmentFile.buffer);
       }
-      if (pdfTemplateEnabled) {
+      if (pdfTemplateEnabled && pdfMode === "html") {
         await writeText(id, "template.html", pdfTemplateHtml);
+      }
+      if (pdfTemplateEnabled && pdfMode === "overlay") {
+        await fs.promises.writeFile(filePath(id, "overlay_source.pdf"), overlaySourceFile.buffer);
+        await writeJson(id, "overlay_regions.json", overlayRegions);
       }
 
       const sampleRow = rows[0];
@@ -95,8 +137,7 @@ router.post(
       let pdfPreviewError = null;
       if (pdfTemplateEnabled) {
         try {
-          const html = renderHtml(pdfTemplateHtml, sampleRow);
-          const pdfBuffer = await htmlToPdf(html);
+          const pdfBuffer = await generateCampaignPdf(id, meta, sampleRow);
           await fs.promises.writeFile(filePath(id, "preview.pdf"), pdfBuffer);
         } catch (err) {
           pdfPreviewError = err.message;
@@ -112,6 +153,7 @@ router.post(
         subjectPreview,
         bodyPreview,
         hasPdfTemplate: pdfTemplateEnabled,
+        pdfMode: pdfTemplateEnabled ? pdfMode : null,
         hasSharedAttachment: Boolean(attachmentFile),
         sharedAttachmentName: attachmentFile?.originalname || null,
         pdfPreviewError,
@@ -121,6 +163,7 @@ router.post(
     }
   }
 );
+
 
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
@@ -137,6 +180,7 @@ router.get("/:id", async (req, res) => {
     subjectPreview: renderText(meta.subject, sampleRow),
     bodyPreview: renderText(meta.body, sampleRow),
     hasPdfTemplate: meta.hasPdfTemplate,
+    pdfMode: meta.pdfMode,
     hasSharedAttachment: meta.hasSharedAttachment,
     sharedAttachmentName: meta.sharedAttachmentName,
     status,
@@ -199,7 +243,6 @@ router.post("/:id/send", express.json(), async (req, res) => {
 
   const meta = await readJson(id, "meta.json");
   const rows = await readJson(id, "recipients.json", []);
-  const template = meta.hasPdfTemplate ? await readText(id, "template.html") : null;
   const sharedAttachment = meta.hasSharedAttachment
     ? {
         filename: meta.sharedAttachmentName,
@@ -266,9 +309,8 @@ router.post("/:id/send", express.json(), async (req, res) => {
         const text = renderText(meta.body, row);
         const attachments = [];
         if (sharedAttachment) attachments.push(sharedAttachment);
-        if (template) {
-          const html = renderHtml(template, row);
-          const pdfBuffer = await htmlToPdf(html);
+        if (meta.hasPdfTemplate) {
+          const pdfBuffer = await generateCampaignPdf(id, meta, row);
           attachments.push({
             filename: `${safeFilenamePart(row.Name || row.Email)}.pdf`,
             content: pdfBuffer,
