@@ -8,6 +8,7 @@ import { renderText, renderHtml } from "../services/templating.js";
 import { htmlToPdf } from "../services/pdf.js";
 import { stampPdf } from "../services/pdfOverlay.js";
 import { createTransport, sendOne, sleep } from "../services/mailer.js";
+import { createBrevoTransport } from "../services/brevoTransport.js";
 import { DAILY_SEND_CAP, getUsage, recordSend } from "../services/senderUsage.js";
 import { getAccount } from "../services/accounts.js";
 import {
@@ -254,26 +255,30 @@ router.post("/:id/send", express.json(), async (req, res) => {
   const alreadySent = await readSentEmails(id);
   const remaining = rows.filter((r) => !alreadySent.has(r.Email));
 
-  // Each Gmail account has its own rolling-24h send cap. Verify every configured
-  // account up front and load its current usage, so a login problem is caught
-  // before anything is sent, not partway through the campaign.
+  // Each account has its own rolling-24h send cap (Gmail ~500, Brevo's free tier
+  // 300). Verify every configured account up front and load its current usage, so
+  // a credentials problem is caught before anything is sent, not partway through.
   const accountDefs = [{ ...primaryAccount, label: "sender" }];
   if (backupAccount) accountDefs.push({ ...backupAccount, label: "backup account" });
 
   const accounts = [];
   for (const def of accountDefs) {
-    const transport = await createTransport({ server, port, sender: def.email, password: def.password });
+    const transport =
+      def.transport === "brevo"
+        ? createBrevoTransport({ apiKey: def.apiKey, senderName: def.label })
+        : await createTransport({ server, port, sender: def.email, password: def.password });
     try {
       await transport.verify();
     } catch (err) {
-      return res.status(400).json({ error: `Could not log in with the ${def.label} (${def.email}): ${err.message}` });
+      const how = def.transport === "brevo" ? "reach Brevo with the API key for" : "log in with";
+      return res.status(400).json({ error: `Could not ${how} the ${def.label} (${def.email}): ${err.message}` });
     }
     const used = await getUsage(def.email);
-    accounts.push({ email: def.email, transport, used });
+    accounts.push({ email: def.email, transport, used, cap: def.cap || DAILY_SEND_CAP });
   }
-  if (accounts.every((a) => a.used >= DAILY_SEND_CAP)) {
+  if (accounts.every((a) => a.used >= a.cap)) {
     return res.status(400).json({
-      error: `All configured account(s) have already reached the ${DAILY_SEND_CAP}/24h sending limit. Wait for the rolling window to free up, or add a different account.`,
+      error: `All configured account(s) have already reached their 24h sending limit. Wait for the rolling window to free up, or add a different account.`,
     });
   }
 
@@ -297,7 +302,7 @@ router.post("/:id/send", express.json(), async (req, res) => {
 
     for (let i = 0; i < remaining.length; i += 1) {
       // Advance past any account that has hit its rolling-24h cap.
-      while (accounts[accountIndex] && accounts[accountIndex].used >= DAILY_SEND_CAP) accountIndex += 1;
+      while (accounts[accountIndex] && accounts[accountIndex].used >= accounts[accountIndex].cap) accountIndex += 1;
       if (!accounts[accountIndex]) {
         capped = true;
         break;
@@ -352,7 +357,7 @@ router.post("/:id/send", express.json(), async (req, res) => {
       done: true,
       capped,
       remaining: rows.length - processed,
-      senders: accounts.map((a) => ({ email: a.email, used: a.used, cap: DAILY_SEND_CAP })),
+      senders: accounts.map((a) => ({ email: a.email, used: a.used, cap: a.cap })),
       finishedAt: new Date().toISOString(),
     });
     runningCampaigns.delete(id);
