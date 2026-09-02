@@ -6,7 +6,11 @@ export function createTransport({ server, port, sender, password }) {
     port,
     secure: port === 465, // 465 = implicit TLS; 587 (default) uses STARTTLS
     auth: { user: sender, pass: password },
-    connectionTimeout: 30_000,
+    // Generous timeouts: reaching smtp.gmail.com from cloud-hosting IP ranges (Render,
+    // Heroku, etc.) is sometimes just slower than from a home/office connection.
+    connectionTimeout: 60_000,
+    greetingTimeout: 30_000,
+    socketTimeout: 60_000,
   });
 }
 
