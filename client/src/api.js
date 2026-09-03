@@ -53,3 +53,13 @@ export async function getAccounts() {
   const res = await fetch("/api/senders/accounts");
   return handle(res);
 }
+
+export async function getMe() {
+  const res = await fetch("/auth/me");
+  if (res.status === 401) return null;
+  return handle(res);
+}
+
+export async function logout() {
+  await fetch("/auth/logout", { method: "POST" });
+}

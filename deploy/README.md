@@ -13,14 +13,14 @@ Any Ubuntu 24.04 VPS works. [Hetzner](https://console.hetzner.cloud) **CX22**
 
 ## 2. Point DNS at it
 
-At your domain registrar (Namecheap → Domain List → peachstrides.com →
-Advanced DNS), add:
+At wherever your domain's DNS is managed (for peachstridesandpristine.com
+that's CloudLogin at us.cloudlogin.co → cPanel → Zone Editor), add:
 
 | Type | Host | Value |
 |---|---|---|
 | A | `mailer` | *your server's IPv4* |
 
-That gives you `mailer.peachstrides.com`. Wait a few minutes for it to resolve.
+That gives you `mailer.peachstridesandpristine.com`. Wait a few minutes for it to resolve.
 
 > Caddy gets the HTTPS certificate automatically, but only once DNS actually
 > points at the box — do this step *before* running setup.
@@ -30,27 +30,31 @@ That gives you `mailer.peachstrides.com`. Wait a few minutes for it to resolve.
 ```bash
 ssh root@YOUR_SERVER_IP
 curl -fsSL https://raw.githubusercontent.com/dejodammy/PeachStrideTools/master/deploy/setup.sh -o setup.sh
-bash setup.sh mailer.peachstrides.com
+bash setup.sh mailer.peachstridesandpristine.com
 ```
 
 This installs Node 22, Caddy (with automatic HTTPS), Chromium, a non-root `app`
 user, the systemd service, automatic security updates, and a firewall.
 
-## 4. Add your sender accounts
+## 4. Add your sender accounts and sign-in
 
 ```bash
 sudo -u app cp /home/app/PeachStrideTools/server/.env.example /home/app/PeachStrideTools/server/.env
 sudo -u app nano /home/app/PeachStrideTools/server/.env
 ```
 
-Fill in `MAIL_ACCOUNT_1_*` (and `_2_` if you use two). Then:
+Fill in `MAIL_ACCOUNT_1_*` (and `_2_` if you use two), **and** the
+`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `SESSION_SECRET` /
+`ALLOWED_EMAILS` block — the app deliberately refuses every request until
+these are set (fails closed, not open). Full Google Cloud Console walkthrough
+is in the comments above those variables in `.env.example`. Then:
 
 ```bash
 systemctl start bulk-mailer
 systemctl status bulk-mailer
 ```
 
-Visit `https://mailer.peachstrides.com`.
+Visit `https://mailer.peachstridesandpristine.com`.
 
 ## 5. Turn on automatic deploys (optional but recommended)
 
@@ -99,7 +103,7 @@ bash ~/PeachStrideTools/deploy/deploy.sh
    `WorkingDirectory` and give it a different port
 3. Add a block to `/etc/caddy/Caddyfile`:
    ```
-   othertool.peachstrides.com {
+   othertool.peachstridesandpristine.com {
        reverse_proxy localhost:5001
    }
    ```
