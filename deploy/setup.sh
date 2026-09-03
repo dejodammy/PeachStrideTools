@@ -75,7 +75,7 @@ systemctl reload caddy || systemctl restart caddy
 
 echo "==> Allowing the deploy user to restart the service without a password"
 cat > /etc/sudoers.d/bulk-mailer <<EOF
-${APP_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart bulk-mailer, /bin/systemctl status bulk-mailer
+${APP_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bulk-mailer, /usr/bin/systemctl status bulk-mailer
 EOF
 chmod 440 /etc/sudoers.d/bulk-mailer
 
