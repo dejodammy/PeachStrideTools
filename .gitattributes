@@ -1,0 +1,7 @@
+# Shell scripts and unit files run on Linux. If they ever get committed with
+# CRLF endings they fail on the server with `$'\r': command not found`, which
+# is a miserable thing to debug. Force LF regardless of anyone's git config.
+*.sh text eol=lf
+*.service text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
