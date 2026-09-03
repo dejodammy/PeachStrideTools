@@ -3,20 +3,27 @@ import puppeteer from "puppeteer-core";
 
 // puppeteer-core does not download its own Chromium (avoids a ~300MB install and native
 // dependency headaches). Instead it drives whichever Chromium-based browser is already
-// on the machine. Checked in order of preference.
+// on the machine. Checked in order of preference, Windows first then Linux (the server
+// installs chromium via apt — see deploy/setup.sh).
 const CANDIDATE_PATHS = [
+  process.env.CHROME_PATH,
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
   "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-];
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/snap/bin/chromium",
+].filter(Boolean);
 
 function findBrowserExecutable() {
   for (const candidate of CANDIDATE_PATHS) {
     if (fs.existsSync(candidate)) return candidate;
   }
   throw new Error(
-    "No Chrome or Edge installation was found. Install Google Chrome or Microsoft Edge to enable PDF generation."
+    "No Chrome/Chromium installation was found. Install Chrome or Chromium (or set CHROME_PATH) to enable HTML-template PDF generation. The 'existing PDF' mode does not need a browser."
   );
 }
 
