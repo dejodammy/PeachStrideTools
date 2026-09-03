@@ -4,7 +4,12 @@ import { promisify } from "node:util";
 
 const resolve4 = promisify(dns.resolve4);
 
-export async function createTransport({ server, port, sender, password }) {
+/**
+ * `user` is the SMTP login name, which is not always the sender address:
+ * Gmail logs in as the address itself, while SES uses an IAM-derived key.
+ * Falls back to `sender` so existing Gmail accounts keep working unchanged.
+ */
+export async function createTransport({ server, port, sender, password, user }) {
   // nodemailer 9's own DNS layer resolves both A and AAAA records and picks a
   // RANDOM address to connect to (see lib/shared/index.js formatDNSValue) — it
   // does not honor a top-level `family` option. On hosts without outbound IPv6
@@ -25,8 +30,11 @@ export async function createTransport({ server, port, sender, password }) {
     host,
     servername: server,
     port,
-    secure: port === 465, // 465 = implicit TLS; 587 (default) uses STARTTLS
-    auth: { user: sender, pass: password },
+    // Implicit TLS on the wrapper ports; STARTTLS on the submission ports.
+    // 2465/2587 are SES's alternates for hosts that block 465/587 (DigitalOcean).
+    secure: port === 465 || port === 2465,
+    requireTLS: true,
+    auth: { user: user || sender, pass: password },
     // Generous timeouts: reaching smtp.gmail.com from cloud-hosting IP ranges (Render,
     // Heroku, etc.) is sometimes just slower than from a home/office connection.
     connectionTimeout: 60_000,

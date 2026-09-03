@@ -263,10 +263,19 @@ router.post("/:id/send", express.json(), async (req, res) => {
 
   const accounts = [];
   for (const def of accountDefs) {
+    // An account may pin its own relay (SES needs a specific host/port/login);
+    // otherwise fall back to whatever the send form supplied, which is how the
+    // Gmail accounts have always worked.
     const transport =
       def.transport === "brevo"
         ? createBrevoTransport({ apiKey: def.apiKey, senderName: def.label })
-        : await createTransport({ server, port, sender: def.email, password: def.password });
+        : await createTransport({
+            server: def.smtpHost || server,
+            port: def.smtpPort || port,
+            sender: def.email,
+            user: def.smtpUser,
+            password: def.password,
+          });
     try {
       await transport.verify();
     } catch (err) {
