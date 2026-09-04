@@ -25,10 +25,15 @@ import { DAILY_SEND_CAP } from "./senderUsage.js";
 //
 // Optional per account: _DAILY_CAP (Gmail ~500/24h, Brevo free 300/day, SES
 // production typically far higher — so the safe ceiling differs by provider).
+const MAX_ACCOUNTS = 20;
+
 function loadAccounts() {
   const accounts = [];
-  let i = 1;
-  while (process.env[`MAIL_ACCOUNT_${i}_EMAIL`]) {
+  // Scan a fixed range rather than stopping at the first missing index: commenting
+  // out account 1 must not silently drop accounts 2+ as well, which is exactly the
+  // trap a `while` loop here would set for anyone editing .env later.
+  for (let i = 1; i <= MAX_ACCOUNTS; i += 1) {
+    if (!process.env[`MAIL_ACCOUNT_${i}_EMAIL`]) continue;
     const email = process.env[`MAIL_ACCOUNT_${i}_EMAIL`].trim();
     const label = (process.env[`MAIL_ACCOUNT_${i}_LABEL`] || email).trim();
     const transport = (process.env[`MAIL_ACCOUNT_${i}_TRANSPORT`] || "smtp").trim().toLowerCase();
@@ -61,7 +66,6 @@ function loadAccounts() {
         cap,
       });
     }
-    i += 1;
   }
   return accounts;
 }
