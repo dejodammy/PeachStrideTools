@@ -214,3 +214,34 @@ export async function applyEdits(id, edits) {
   await fsp.writeFile(path.join(jobDir(id), "edits.json"), JSON.stringify(edits, null, 2), "utf8");
   return true;
 }
+
+// Every job folder holds the uploaded CVs themselves — real people's names,
+// emails and phone numbers — so abandoned batches shouldn't just sit on disk
+// forever. Deletes any job whose folder hasn't been touched in `maxAgeDays`.
+const DEFAULT_RETENTION_DAYS = Number(process.env.CVEXTRACT_RETENTION_DAYS) || 7;
+
+export async function sweepOldJobs(maxAgeDays = DEFAULT_RETENTION_DAYS) {
+  let entries;
+  try {
+    entries = await fsp.readdir(EXTRACTIONS_DIR, { withFileTypes: true });
+  } catch {
+    return { removed: 0 };
+  }
+
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const dir = path.join(EXTRACTIONS_DIR, entry.name);
+    try {
+      const stat = await fsp.stat(dir);
+      if (stat.mtimeMs < cutoff) {
+        await fsp.rm(dir, { recursive: true, force: true });
+        removed += 1;
+      }
+    } catch {
+      // Job folder disappeared or is mid-write — leave it for the next sweep rather than fail the batch.
+    }
+  }
+  return { removed };
+}

@@ -13,6 +13,7 @@ import cvextractRouter from "./routes/cvextract.js";
 import authRouter from "./routes/auth.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { closeBrowser } from "./services/pdf.js";
+import { sweepOldJobs } from "./services/cvExtract.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, "..", "..", "client", "dist");
@@ -63,6 +64,16 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   console.log(`Bulk Mailer server running at http://localhost:${PORT}`);
 });
+
+// Uploaded CVs carry real contact details, so abandoned extraction jobs
+// shouldn't linger on disk indefinitely — sweep on boot, then daily.
+sweepOldJobs().then(({ removed }) => {
+  if (removed) console.log(`cvextract: removed ${removed} expired job folder(s)`);
+});
+const sweepInterval = setInterval(() => {
+  sweepOldJobs().catch((err) => console.error("cvextract sweep failed:", err));
+}, 24 * 60 * 60 * 1000);
+sweepInterval.unref(); // don't hold the process open just for this timer
 
 async function shutdown() {
   await closeBrowser();

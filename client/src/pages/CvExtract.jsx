@@ -35,6 +35,32 @@ function flagHelp(flag) {
   return flag;
 }
 
+// The extraction keeps running on the server after a reload — this just
+// remembers which job to reconnect to so the browser can catch back up
+// instead of stranding a finished (or still-running) batch with no way back.
+const JOB_KEY = "cvextract:jobId";
+function rememberJob(id) {
+  try {
+    localStorage.setItem(JOB_KEY, id);
+  } catch {
+    /* private browsing or storage disabled — resume-on-reload just won't work */
+  }
+}
+function forgetJob() {
+  try {
+    localStorage.removeItem(JOB_KEY);
+  } catch {
+    /* nothing to clean up if it never stored */
+  }
+}
+function recalledJob() {
+  try {
+    return localStorage.getItem(JOB_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function Row({ row, onChange, onView }) {
   return (
     <tr className={row.flags.length ? "row-flagged" : ""}>
@@ -72,25 +98,46 @@ export default function CvExtract({ onUseContacts }) {
   const [status, setStatus] = useState(null);
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const timer = useRef(null);
 
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  // Reconnect to a batch that was already running (or already finished) when
+  // this tab loaded — a reload or an accidental back-navigation shouldn't
+  // strand an in-progress extraction with no way to reach the results.
+  useEffect(() => {
+    const saved = recalledJob();
+    if (!saved) return;
+    getExtractionStatus(saved)
+      .then(() => {
+        setJobId(saved);
+        poll(saved);
+      })
+      .catch(() => forgetJob()); // that job is gone (expired, or server restarted before it started) — nothing to resume
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleStart(e) {
     e.preventDefault();
     setError("");
     if (!files.length) return setError("Choose some CV files first.");
+    if (submitting) return; // already uploading — the button is disabled, but guard the double-submit anyway
 
+    setSubmitting(true);
     const fd = new FormData();
     for (const f of files) fd.append("cvs", f);
 
     try {
       const { id, skipped } = await startExtraction(fd);
+      rememberJob(id);
       setJobId(id);
       if (skipped) setError(`${skipped} file(s) skipped — only .pdf, .docx and .doc are read.`);
       poll(id);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -131,6 +178,7 @@ export default function CvExtract({ onUseContacts }) {
 
   function reset() {
     clearTimeout(timer.current);
+    forgetJob();
     setFiles([]);
     setJobId(null);
     setStatus(null);
@@ -309,8 +357,21 @@ export default function CvExtract({ onUseContacts }) {
 
       {error && <div className="banner error">{error}</div>}
 
-      <button type="submit" className="primary" style={{ width: "100%", marginTop: 8 }}>
-        <IconCheck width={15} height={15} /> Extract from {files.length || 0} file(s)
+      <button
+        type="submit"
+        className="primary"
+        style={{ width: "100%", marginTop: 8 }}
+        disabled={submitting || !files.length}
+      >
+        {submitting ? (
+          <>
+            <span className="btn-spinner" /> Uploading {files.length} file(s)…
+          </>
+        ) : (
+          <>
+            <IconCheck width={15} height={15} /> Extract from {files.length || 0} file(s)
+          </>
+        )}
       </button>
     </form>
   );
