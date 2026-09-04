@@ -49,6 +49,12 @@ app.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ error: "File too large (limit 40MB)." });
   }
+  // Malformed JSON and similar client mistakes carry their own 4xx status;
+  // reporting those as 500 sends people hunting for a server fault that isn't there.
+  const status = err.status || err.statusCode;
+  if (status && status >= 400 && status < 500) {
+    return res.status(status).json({ error: err.message || "Bad request." });
+  }
   console.error(err);
   res.status(500).json({ error: "Unexpected server error." });
 });

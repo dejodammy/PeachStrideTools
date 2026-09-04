@@ -160,3 +160,57 @@ export async function readResults(id) {
 export function resultPath(id) {
   return path.join(jobDir(id), "contacts.xlsx");
 }
+
+/**
+ * Resolves an uploaded CV inside a job, refusing anything that escapes the
+ * job's own input folder — the filename arrives from the URL.
+ */
+export function sourceFilePath(id, name) {
+  const input = path.resolve(jobDir(id), "input");
+  const p = path.resolve(input, path.basename(String(name || "")));
+  if (!p.startsWith(input + path.sep)) return null;
+  return fs.existsSync(p) ? p : null;
+}
+
+/**
+ * Applies reviewer corrections back into the generated workbook so the
+ * downloaded spreadsheet matches what they fixed on screen. Values are written
+ * into the existing sheets rather than rebuilding the file, so the structure
+ * cvextract produced (including the Flag Guide) survives.
+ */
+export async function applyEdits(id, edits) {
+  const out = resultPath(id);
+  if (!fs.existsSync(out)) return false;
+
+  const byFile = new Map(edits.map((e) => [e.file, e]));
+  const wb = XLSX.read(await fsp.readFile(out), { type: "buffer", cellStyles: true });
+
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws || !ws["!ref"]) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    if (!rows.length || !("Source File" in rows[0])) continue; // skip Flag Guide
+
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    const header = {};
+    for (let c = range.s.c; c <= range.e.c; c += 1) {
+      const cell = ws[XLSX.utils.encode_cell({ r: range.s.r, c })];
+      if (cell?.v) header[String(cell.v)] = c;
+    }
+
+    rows.forEach((row, i) => {
+      const edit = byFile.get(String(row["Source File"]));
+      if (!edit) return;
+      const r = range.s.r + 1 + i;
+      for (const [col, value] of [["Name", edit.name], ["Email", edit.email], ["Phone", edit.phone]]) {
+        if (header[col] === undefined || value === undefined) continue;
+        const addr = XLSX.utils.encode_cell({ r, c: header[col] });
+        ws[addr] = { ...(ws[addr] || {}), t: "s", v: String(value ?? "") };
+      }
+    });
+  }
+
+  await fsp.writeFile(out, XLSX.write(wb, { bookType: "xlsx", type: "buffer", cellStyles: true }));
+  await fsp.writeFile(path.join(jobDir(id), "edits.json"), JSON.stringify(edits, null, 2), "utf8");
+  return true;
+}

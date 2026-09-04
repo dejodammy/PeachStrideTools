@@ -5,7 +5,15 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { jobDir, runExtraction, readStatus, readResults, resultPath } from "../services/cvExtract.js";
+import {
+  jobDir,
+  runExtraction,
+  readStatus,
+  readResults,
+  resultPath,
+  sourceFilePath,
+  applyEdits,
+} from "../services/cvExtract.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,6 +66,27 @@ router.get("/:id/results", async (req, res) => {
   const rows = await readResults(req.params.id);
   if (!rows) return res.status(404).json({ error: "No results yet." });
   res.json({ rows });
+});
+
+// Serves an uploaded CV so the reviewer can read the actual document while
+// correcting what was extracted from it. inline so the browser renders PDFs.
+router.get("/:id/file/:name", (req, res) => {
+  const p = sourceFilePath(req.params.id, req.params.name);
+  if (!p) return res.status(404).send("File not found.");
+  const ext = path.extname(p).toLowerCase();
+  if (ext === ".pdf") res.type("application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${path.basename(p)}"`);
+  res.sendFile(p);
+});
+
+// Writes reviewer corrections into the workbook, so the download matches what
+// they fixed on screen rather than the original guesses.
+router.post("/:id/rows", express.json({ limit: "2mb" }), async (req, res) => {
+  const rows = req.body?.rows;
+  if (!Array.isArray(rows)) return res.status(400).json({ error: "Expected { rows: [...] }." });
+  const ok = await applyEdits(req.params.id, rows);
+  if (!ok) return res.status(404).json({ error: "No spreadsheet to update." });
+  res.json({ saved: rows.length });
 });
 
 router.get("/:id/download", (req, res) => {

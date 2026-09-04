@@ -4,8 +4,10 @@ import {
   getExtractionStatus,
   getExtractionResults,
   extractionDownloadUrl,
+  saveExtractionRows,
 } from "../api.js";
-import { IconUpload, IconDownload, IconCheck, IconMail } from "../icons.jsx";
+import { IconUpload, IconDownload, IconCheck, IconMail, IconFileText } from "../icons.jsx";
+import CvReviewer from "../components/CvReviewer.jsx";
 
 // Plain-English explanations for the flags cvextract raises, so a reviewer
 // knows what to actually check rather than decoding a constant name.
@@ -33,9 +35,14 @@ function flagHelp(flag) {
   return flag;
 }
 
-function Row({ row, onChange }) {
+function Row({ row, onChange, onView }) {
   return (
     <tr className={row.flags.length ? "row-flagged" : ""}>
+      <td>
+        <button type="button" className="view-btn" onClick={onView} title={`Open ${row.file}`}>
+          <IconFileText width={14} height={14} /> View
+        </button>
+      </td>
       <td>
         <input className="cell-input" value={row.name} onChange={(e) => onChange({ ...row, name: e.target.value })} />
       </td>
@@ -59,6 +66,8 @@ function Row({ row, onChange }) {
 
 export default function CvExtract({ onUseContacts }) {
   const [files, setFiles] = useState([]);
+  const [viewing, setViewing] = useState(null); // index into `rows`
+  const [saveState, setSaveState] = useState("");
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState(null);
   const [rows, setRows] = useState(null);
@@ -107,6 +116,19 @@ export default function CvExtract({ onUseContacts }) {
     })();
   }
 
+  async function handleSave(updated) {
+    const toSave = updated || rows;
+    setSaveState("saving");
+    try {
+      await saveExtractionRows(jobId, toSave);
+      setSaveState("saved");
+      setTimeout(() => setSaveState(""), 2500);
+    } catch (err) {
+      setSaveState("");
+      setError("Could not save your corrections: " + err.message);
+    }
+  }
+
   function reset() {
     clearTimeout(timer.current);
     setFiles([]);
@@ -141,11 +163,16 @@ export default function CvExtract({ onUseContacts }) {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Source file</th><th>Flags</th></tr>
+                  <tr><th></th><th>Name</th><th>Email</th><th>Phone</th><th>Source file</th><th>Flags</th></tr>
                 </thead>
                 <tbody>
                   {flagged.map((r) => (
-                    <Row key={r.i} row={r} onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))} />
+                    <Row
+                      key={r.i}
+                      row={r}
+                      onView={() => setViewing(rows.findIndex((x) => x.i === r.i))}
+                      onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -159,11 +186,16 @@ export default function CvExtract({ onUseContacts }) {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Source file</th><th>Flags</th></tr>
+                  <tr><th></th><th>Name</th><th>Email</th><th>Phone</th><th>Source file</th><th>Flags</th></tr>
                 </thead>
                 <tbody>
                   {clean.map((r) => (
-                    <Row key={r.i} row={r} onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))} />
+                    <Row
+                      key={r.i}
+                      row={r}
+                      onView={() => setViewing(rows.findIndex((x) => x.i === r.i))}
+                      onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -171,10 +203,32 @@ export default function CvExtract({ onUseContacts }) {
           </div>
         )}
 
+        {viewing !== null && (
+          <CvReviewer
+            jobId={jobId}
+            rows={rows}
+            index={viewing}
+            flagHelp={flagHelp}
+            onIndexChange={setViewing}
+            onClose={() => {
+              setViewing(null);
+              handleSave();
+            }}
+            onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))}
+          />
+        )}
+
+        {error && <div className="banner error">{error}</div>}
+
         <div className="actions">
-          <a className="secondary" href={extractionDownloadUrl(jobId)}>
-            <IconDownload width={15} height={15} /> Download spreadsheet
-          </a>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <a className="secondary" href={extractionDownloadUrl(jobId)}>
+              <IconDownload width={15} height={15} /> Download spreadsheet
+            </a>
+            <button type="button" className="secondary" onClick={() => handleSave()} disabled={saveState === "saving"}>
+              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved to spreadsheet" : "Save corrections"}
+            </button>
+          </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button type="button" className="secondary" onClick={reset}>
               Extract another batch

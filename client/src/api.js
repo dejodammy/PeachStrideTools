@@ -84,3 +84,16 @@ export async function getExtractionResults(id) {
 export function extractionDownloadUrl(id) {
   return `/api/cvextract/${id}/download`;
 }
+
+export function cvFileUrl(id, name) {
+  return `/api/cvextract/${id}/file/${encodeURIComponent(name)}`;
+}
+
+export async function saveExtractionRows(id, rows) {
+  const res = await fetch(`/api/cvextract/${id}/rows`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rows }),
+  });
+  return handle(res);
+}

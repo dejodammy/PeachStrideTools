@@ -1119,3 +1119,124 @@ tbody tr.row-flagged:hover td {
   white-space: normal;
   min-width: 260px;
 }
+
+/* ---------- CV reviewer (document beside the fields) ---------- */
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-700);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.reviewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 30, 43, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.reviewer {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  width: min(1180px, 100%);
+  height: min(860px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px -12px rgba(18, 30, 43, 0.4);
+}
+
+.reviewer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.reviewer-count {
+  margin-left: 10px;
+  color: var(--ink-500);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.reviewer-body {
+  display: flex;
+  flex: 1;
+  min-height: 0; /* lets the iframe actually scroll instead of overflowing */
+}
+
+.reviewer-doc {
+  flex: 1.5;
+  min-width: 0;
+  background: #f2efe9;
+  border-right: 1px solid var(--border);
+}
+
+.reviewer-doc iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.reviewer-nopreview {
+  padding: 32px;
+  text-align: center;
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+.reviewer-fields {
+  flex: 1;
+  min-width: 320px;
+  max-width: 420px;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.reviewer-flags {
+  margin-bottom: 20px;
+}
+
+.reviewer-flag {
+  margin-bottom: 10px;
+}
+
+.reviewer-flag-help {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-500);
+}
+
+@media (max-width: 860px) {
+  .reviewer-body { flex-direction: column; }
+  .reviewer-fields { max-width: none; }
+}
