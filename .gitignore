@@ -22,3 +22,7 @@ demo_recipients.xlsx
 # OS/editor cruft
 .DS_Store
 Thumbs.db
+
+# Runtime CV extraction jobs (uploaded CVs + generated spreadsheets)
+server/data/extractions/*
+!server/data/extractions/.gitkeep

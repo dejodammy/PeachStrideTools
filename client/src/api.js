@@ -63,3 +63,24 @@ export async function getMe() {
 export async function logout() {
   await fetch("/auth/logout", { method: "POST" });
 }
+
+// ---- CV extraction ----
+
+export async function startExtraction(formData) {
+  const res = await fetch("/api/cvextract", { method: "POST", body: formData });
+  return handle(res);
+}
+
+export async function getExtractionStatus(id) {
+  const res = await fetch(`/api/cvextract/${id}/status`);
+  return handle(res);
+}
+
+export async function getExtractionResults(id) {
+  const res = await fetch(`/api/cvextract/${id}/results`);
+  return handle(res);
+}
+
+export function extractionDownloadUrl(id) {
+  return `/api/cvextract/${id}/download`;
+}

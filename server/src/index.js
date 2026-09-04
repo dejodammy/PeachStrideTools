@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import campaignsRouter from "./routes/campaigns.js";
 import sendersRouter from "./routes/senders.js";
 import diagnosticsRouter from "./routes/diagnostics.js";
+import cvextractRouter from "./routes/cvextract.js";
 import authRouter from "./routes/auth.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { closeBrowser } from "./services/pdf.js";
@@ -29,6 +30,7 @@ app.use("/auth", authRouter);
 app.use("/api/campaigns", requireAuth, campaignsRouter);
 app.use("/api/senders", requireAuth, sendersRouter);
 app.use("/api/diagnostics", requireAuth, diagnosticsRouter);
+app.use("/api/cvextract", requireAuth, cvextractRouter);
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 

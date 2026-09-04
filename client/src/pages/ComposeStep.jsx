@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createCampaign, getDefaultTemplate } from "../api.js";
 import { IconUpload, IconPaperclip, IconSparkle } from "../icons.jsx";
 import PlaceholderChips from "../components/PlaceholderChips.jsx";
@@ -19,7 +19,7 @@ function FileDrop({ label, hint, file, accept, onChange, icon }) {
   );
 }
 
-export default function ComposeStep({ onCreated }) {
+export default function ComposeStep({ onCreated, presetRecipients }) {
   const [recipients, setRecipients] = useState(null);
   const [columns, setColumns] = useState([]);
   const [columnsError, setColumnsError] = useState("");
@@ -33,6 +33,13 @@ export default function ComposeStep({ onCreated }) {
   const [overlayRegions, setOverlayRegions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Recipients handed over from CV extraction arrive as a File, so run them
+  // through the same path a manual upload takes — column chips included.
+  useEffect(() => {
+    if (presetRecipients) handleRecipientsChange(presetRecipients);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetRecipients]);
 
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
