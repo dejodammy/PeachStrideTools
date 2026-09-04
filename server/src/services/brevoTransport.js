@@ -53,7 +53,7 @@ export function createBrevoTransport({ apiKey, senderName }) {
       return true;
     },
 
-    async sendMail({ from, to, subject, text, attachments }) {
+    async sendMail({ from, to, subject, text, attachments, replyTo }) {
       const sender = parseAddress(from);
       if (senderName && !sender.name) sender.name = senderName;
 
@@ -62,6 +62,7 @@ export function createBrevoTransport({ apiKey, senderName }) {
         to: [parseAddress(to)],
         subject,
         textContent: text,
+        ...(replyTo ? { replyTo: parseAddress(replyTo) } : {}),
       };
 
       if (attachments?.length) {

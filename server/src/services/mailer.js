@@ -45,9 +45,11 @@ export async function createTransport({ server, port, sender, password, user }) 
 
 /**
  * Send one email. `attachments` is an array of { filename, content (Buffer), contentType }.
+ * `replyTo` is optional: it lets mail go out from a domain address (good for
+ * deliverability) while replies land in an inbox someone actually monitors.
  */
-export async function sendOne(transport, { from, to, subject, text, attachments }) {
-  await transport.sendMail({ from, to, subject, text, attachments });
+export async function sendOne(transport, { from, to, subject, text, attachments, replyTo }) {
+  await transport.sendMail({ from, to, subject, text, attachments, ...(replyTo ? { replyTo } : {}) });
 }
 
 export function sleep(ms) {

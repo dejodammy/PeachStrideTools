@@ -283,7 +283,7 @@ router.post("/:id/send", express.json(), async (req, res) => {
       return res.status(400).json({ error: `Could not ${how} the ${def.label} (${def.email}): ${err.message}` });
     }
     const used = await getUsage(def.email);
-    accounts.push({ email: def.email, transport, used, cap: def.cap || DAILY_SEND_CAP });
+    accounts.push({ email: def.email, replyTo: def.replyTo, transport, used, cap: def.cap || DAILY_SEND_CAP });
   }
   if (accounts.every((a) => a.used >= a.cap)) {
     return res.status(400).json({
@@ -331,7 +331,14 @@ router.post("/:id/send", express.json(), async (req, res) => {
             contentType: "application/pdf",
           });
         }
-        await sendOne(account.transport, { from: account.email, to: row.Email, subject, text, attachments });
+        await sendOne(account.transport, {
+          from: account.email,
+          replyTo: account.replyTo,
+          to: row.Email,
+          subject,
+          text,
+          attachments,
+        });
         sent += 1;
         account.used += 1;
         await recordSend(account.email);

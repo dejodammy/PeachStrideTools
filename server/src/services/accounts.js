@@ -39,6 +39,9 @@ function loadAccounts() {
     const smtpPort = Number.isFinite(smtpPortRaw) && smtpPortRaw > 0 ? smtpPortRaw : null;
     // Most relays log in as the address itself (Gmail); SES uses a separate key.
     const smtpUser = (process.env[`MAIL_ACCOUNT_${i}_SMTP_USER`] || "").trim() || email;
+    // Optional: send from the domain (good deliverability) but route replies to
+    // an inbox that is actually monitored.
+    const replyTo = (process.env[`MAIL_ACCOUNT_${i}_REPLY_TO`] || "").trim();
     const capRaw = Number(process.env[`MAIL_ACCOUNT_${i}_DAILY_CAP`]);
     const cap = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : DAILY_SEND_CAP;
 
@@ -54,6 +57,7 @@ function loadAccounts() {
         smtpHost,
         smtpPort,
         smtpUser,
+        replyTo,
         cap,
       });
     }
