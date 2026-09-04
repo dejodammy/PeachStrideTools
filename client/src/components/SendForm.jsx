@@ -12,7 +12,8 @@ function QuotaHint({ usage, checking }) {
   return <small>{used}/{cap} used in the last 24h — {remaining} left before the daily limit.</small>;
 }
 
-export default function SendForm({ recipientCount, submitLabel, onSubmit, onCancel, cancelLabel = "← Start over" }) {
+// The button already renders an arrow icon, so the label must not repeat it.
+export default function SendForm({ recipientCount, submitLabel, onSubmit, onCancel, cancelLabel = "Start over" }) {
   const [accounts, setAccounts] = useState(null); // null = still loading
   const [accountId, setAccountId] = useState("");
   const [backupEnabled, setBackupEnabled] = useState(false);

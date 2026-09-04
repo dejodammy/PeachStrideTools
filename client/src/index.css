@@ -1,34 +1,40 @@
+/* Design tokens lifted from peachstridesandpristine.com so this tool reads as
+   part of the same product rather than a detached internal app. Values were
+   taken from the live site's computed styles, not eyeballed. */
 :root {
-  /* ---- Color: warm ink on warm paper, one restrained accent ---- */
-  --ink-900: #16181d;
-  --ink-700: #40434b;
-  --ink-500: #6d707a;
-  --ink-300: #a6a8b0;
-  --border: #e6e4df;
-  --border-strong: #d7d4cc;
+  /* ---- Color ---- */
+  --ink-900: #121e2b; /* site body text  */
+  --heading: #373435; /* site headings — warmer than the body ink */
+  --ink-700: #4a4749;
+  --ink-500: #7b7779;
+  --ink-300: #b0acae;
+  --border: #e8e4de;
+  --border-strong: #d6d1ca;
   --surface: #ffffff;
-  --bg: #f6f4ef;
+  --bg: #fcfbf8; /* site background */
+  --dark: #1c1a1b; /* site's dark sections */
 
-  --accent: #0e6b4a;
-  --accent-strong: #0a5138;
-  --accent-soft: #e7f2ec;
-  --accent-ring: rgba(14, 107, 74, 0.16);
+  --accent: #ed3237; /* brand red */
+  --accent-strong: #c9252a;
+  --accent-soft: #fdeced;
+  --accent-ring: rgba(237, 50, 55, 0.18);
 
-  --danger: #ac2b22;
-  --danger-bg: #fbeae8;
+  --danger: #c9252a;
+  --danger-bg: #fdeced;
   --warn: #8a5a00;
   --warn-bg: #fdf3e0;
 
-  /* ---- Type ---- */
-  --font-sans: "Inter", -apple-system, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  /* ---- Type: Geist, same as the site ---- */
+  --font-sans: "Geist", -apple-system, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
 
-  /* ---- Shape & elevation ---- */
-  --radius-sm: 8px;
+  /* ---- Shape: pill CTAs and 12/16px cards, matching the site ---- */
+  --radius-sm: 10px;
   --radius-md: 12px;
-  --radius-lg: 20px;
-  --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.05);
-  --shadow-md: 0 8px 24px -8px rgba(22, 24, 29, 0.14), 0 2px 6px rgba(22, 24, 29, 0.05);
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+  --shadow-sm: 0 1px 2px rgba(18, 30, 43, 0.05);
+  --shadow-md: 0 8px 24px -8px rgba(18, 30, 43, 0.12), 0 2px 6px rgba(18, 30, 43, 0.04);
   --shadow-focus: 0 0 0 4px var(--accent-ring);
 }
 
@@ -42,12 +48,22 @@ html {
 
 body {
   margin: 0;
+  /* Fill the viewport so the wash below doesn't stop at the content edge and
+     leave a visible seam on short pages (e.g. the sign-in screen). */
+  min-height: 100vh;
   font-family: var(--font-sans);
-  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   background: var(--bg);
-  background-image: radial-gradient(circle at 12% 0%, #fbfaf6 0%, var(--bg) 42%);
+  /* Faint warm blush from the top-left, echoing the site's hero wash */
+  background-image: radial-gradient(circle at 10% -5%, #fdf1f1 0%, var(--bg) 45%);
   color: var(--ink-900);
+}
+
+h1,
+h2,
+h3 {
+  color: var(--heading);
+  letter-spacing: -0.03em; /* the site sets tight negative tracking on headings */
 }
 
 .app {
@@ -62,16 +78,32 @@ body {
   margin-bottom: 40px;
 }
 
-.app-header .kicker {
+/* Company logo + tool name, so this reads as an internal Peach Strides product */
+.brand {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.brand-logo {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+
+.brand-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+}
+
+.brand-tool {
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 10px;
+  color: var(--ink-500);
 }
 
 .app-header h1 {
@@ -647,8 +679,9 @@ a.button {
   gap: 7px;
   font-size: 14px;
   font-weight: 600;
-  padding: 11px 20px;
-  border-radius: var(--radius-sm);
+  padding: 11px 22px;
+  /* The site uses fully-rounded pill CTAs */
+  border-radius: var(--radius-pill);
   border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
@@ -658,13 +691,13 @@ a.button {
 .primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 1px 2px rgba(10, 81, 56, 0.15), 0 4px 10px -4px rgba(10, 81, 56, 0.4);
+  box-shadow: 0 1px 2px rgba(237, 50, 55, 0.18), 0 4px 12px -4px rgba(237, 50, 55, 0.4);
 }
 
 .primary:hover {
   background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(10, 81, 56, 0.18), 0 8px 16px -6px rgba(10, 81, 56, 0.45);
+  box-shadow: 0 2px 4px rgba(237, 50, 55, 0.22), 0 10px 18px -6px rgba(237, 50, 55, 0.45);
 }
 
 .primary:active {

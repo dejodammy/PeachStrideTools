@@ -4,7 +4,7 @@ import PreviewStep from "./pages/PreviewStep.jsx";
 import SendingStep from "./pages/SendingStep.jsx";
 import CompleteStep from "./pages/CompleteStep.jsx";
 import LoginScreen from "./pages/LoginScreen.jsx";
-import { IconMail, IconCheck } from "./icons.jsx";
+import { IconCheck } from "./icons.jsx";
 import { getMe, logout } from "./api.js";
 
 const STEPS = ["Compose", "Preview & send", "Sending", "Done"];
@@ -48,9 +48,10 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="app-header-top">
-          <div className="kicker">
-            <IconMail width={14} height={14} />
-            Bulk Mailer
+          <div className="brand">
+            <img src="/logo.png" alt="Peach Strides &amp; Pristine" className="brand-logo" />
+            <span className="brand-divider" />
+            <span className="brand-tool">Bulk Mailer</span>
           </div>
           <div className="account-bar">
             <span>{user.email}</span>

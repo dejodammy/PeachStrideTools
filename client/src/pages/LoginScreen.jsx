@@ -1,4 +1,3 @@
-import { IconMail } from "../icons.jsx";
 
 function IconGoogle(props) {
   return (
@@ -24,22 +23,23 @@ export default function LoginScreen({ error }) {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="kicker">
-          <IconMail width={14} height={14} />
-          Bulk Mailer
+        <div className="brand">
+          <img src="/logo.png" alt="Peach Strides &amp; Pristine" className="brand-logo" />
+          <span className="brand-divider" />
+          <span className="brand-tool">Bulk Mailer</span>
         </div>
         <h1>Sign in to continue</h1>
         <p>This tool is restricted to approved staff accounts.</p>
       </header>
 
-      <div className="card" style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
+      <div className="card" style={{ maxWidth: 460, margin: "0 auto", textAlign: "center" }}>
         {error && (
           <div className="banner error" style={{ textAlign: "left" }}>
             {error}
           </div>
         )}
         <p className="lede" style={{ marginBottom: 24 }}>
-          Use the Google account your company access is tied to.
+          Sign in with your approved company Google account.
         </p>
         <a
           href="/auth/google"
