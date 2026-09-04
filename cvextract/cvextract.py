@@ -64,6 +64,12 @@ LABEL_RE = re.compile(r"^(?:e[\s\-]?mail|mail|address|contact)[\s\-.:]+", re.I)
 # Digits plus the punctuation Nigerian CVs sprinkle through them: +234, (0), -.
 PHONE_RUN_RE = re.compile(r"(?:\+?234|0)[\d\s\-().]{8,24}\d")
 
+# Fallback for candidates based abroad: a run that opens with an explicit
+# international marker (+ or the 00 access code) rather than Nigeria's own
+# "0" or "234" — those are ambiguous with plain local numbers on their own,
+# so this only ever runs once the Nigerian pass above has come up empty.
+INTL_PHONE_RUN_RE = re.compile(r"(?:\+|00)\d[\d\s\-().]{6,20}\d")
+
 COMMON_DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
                   'yahoo.co.uk', 'googlemail.com', 'icloud.com', 'live.com']
 
@@ -389,15 +395,48 @@ def split_run(d):
     return out
 
 
+def normalise_foreign_phone(raw):
+    """A matched international run -> '+<countrycode><number>', or None if the
+    digit count isn't plausible for a real phone number (E.164 allows up to 15
+    digits after the country code marker)."""
+    digits = re.sub(r'\D', '', raw)
+    if raw.strip().startswith('00'):
+        digits = digits[2:]  # '00' is the access code, not part of the number
+    if not (8 <= len(digits) <= 15):
+        return None
+    return '+' + digits
+
+
 def find_phones(text, limit=2):
-    """-> (phones, flags). Never reads below a REFEREES heading."""
+    """-> (phones, flags). Never reads below a REFEREES heading. A Nigerian
+    mobile is always preferred; a foreign number is only reported when the CV
+    has no Nigerian number at all, and is flagged so it gets a second look —
+    the pattern that catches it is far looser than the Nigerian one."""
     head = body_before_referees(text)
     out = []
     for raw in PHONE_RUN_RE.findall(head):
-        for n in split_run(re.sub(r'\D', '', raw)):
+        digits = re.sub(r'\D', '', raw)
+        # A run starting '00' opens with the international access code, not a
+        # Nigerian trunk prefix — leave it for the foreign pass below rather
+        # than let split_run peel a plausible-looking Nigerian number out of
+        # someone else's country code.
+        if digits.startswith('00'):
+            continue
+        for n in split_run(digits):
             if n not in out:
                 out.append(n)
-    return out[:limit], ([] if out else ['NO_PHONE'])
+    if out:
+        return out[:limit], []
+
+    foreign = []
+    for raw in INTL_PHONE_RUN_RE.findall(head):
+        n = normalise_foreign_phone(raw)
+        if n and n not in foreign:
+            foreign.append(n)
+    if foreign:
+        return foreign[:limit], ['FOREIGN_PHONE']
+
+    return [], ['NO_PHONE']
 
 
 def looks_like_name(line):
@@ -539,7 +578,8 @@ def needs_review(rec):
             'NAME_FROM_FILENAME', 'UNSUPPORTED_FORMAT', 'NO_TEXT_FOUND',
             'READ_FAILED', 'DOC_NEEDS_WORD', 'DOMAIN_LOOKS_LIKE_TYPO',
             'EMAIL_LABEL_STRIPPED', 'EMAIL_ONLY_IN_REFEREE_BLOCK',
-            'DUPLICATE_IN_BATCH', 'NO_PHONE', 'NAME_JOINED_FROM_TWO_LINES')
+            'DUPLICATE_IN_BATCH', 'NO_PHONE', 'FOREIGN_PHONE',
+            'NAME_JOINED_FROM_TWO_LINES')
     return any(f.startswith(h) for f in rec['flags'] for h in hard)
 
 
@@ -558,7 +598,8 @@ FLAG_HELP = {
     'EMAIL_ONLY_IN_REFEREE_BLOCK': 'The only address sits under a REFEREES heading. It may belong to the referee, not the candidate.',
     'DUPLICATE_IN_BATCH': 'This address appears on more than one CV in this batch.',
     'DOMAIN_NEAR': 'The domain is 1-2 letters away from a common provider (gmaill.com, gamil.com). It may be a typo on the CV - or a real, less common provider such as mail.com. Confirm before sending.',
-    'NO_PHONE': 'No Nigerian mobile number found outside the referee block.',
+    'NO_PHONE': 'No phone number, Nigerian or foreign, found outside the referee block.',
+    'FOREIGN_PHONE': 'No Nigerian mobile on this CV; a non-Nigerian number was used instead. The pattern for these is looser, so check the country code and digit count.',
 }
 
 

@@ -26,3 +26,7 @@ Thumbs.db
 # Runtime CV extraction jobs (uploaded CVs + generated spreadsheets)
 server/data/extractions/*
 !server/data/extractions/.gitkeep
+
+# Python
+__pycache__/
+*.pyc

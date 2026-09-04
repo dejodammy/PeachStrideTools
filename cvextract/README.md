@@ -91,7 +91,8 @@ Expect drift on new sources — which is exactly why the review queue exists.
 | `EMAIL_LABEL_STRIPPED` | A label was glued to the address (`Email-name@x.com`); removed, confirm it |
 | `EMAIL_ONLY_IN_REFEREE_BLOCK` | The only address sits under REFEREES — may not be the candidate's |
 | `DUPLICATE_IN_BATCH` | Same address on more than one CV |
-| `NO_PHONE` | No Nigerian mobile found outside the referee block |
+| `NO_PHONE` | No phone number, Nigerian or foreign, found outside the referee block |
+| `FOREIGN_PHONE` | No Nigerian mobile on the CV — a non-Nigerian number was used instead; check it |
 | `UNSUPPORTED_FORMAT` / `NO_TEXT_FOUND` / `READ_FAILED` | Nothing was extracted |
 
 ## How it reads things
@@ -119,6 +120,12 @@ digit run once separators are stripped, so valid numbers are peeled off the fron
 rather than the whole run being read as one bad number. Referee numbers are cut the
 same way as referee emails.
 
+If a CV has no Nigerian number at all, a foreign one is used instead — anything
+opening with `+` or the `00` access code, normalised to `+<countrycode><number>`.
+That pattern is much looser than the Nigerian one (it can't validate a foreign
+number's shape the way it can a Nigerian mobile's), so it only ever runs as a
+fallback and is flagged `FOREIGN_PHONE` for a second look.
+
 **Names** — a `Name:` field wins if there is one. Otherwise lines are scored on shape,
 position, and character overlap with the email's local part — the email is the most
 useful corroborating signal available, since `muritalanurat2019@` will find
@@ -139,7 +146,8 @@ leads with a Read Me sheet works fine.
 
 ## Limits worth knowing
 
-- Phone patterns are **Nigerian**. Other country formats need `normalise_phone` changed.
+- Phone patterns are tuned for **Nigerian** mobiles first; a foreign number is only
+  read as a fallback (flagged `FOREIGN_PHONE`) and isn't validated as tightly.
 - OCR is the Windows on-device engine — Windows only. Swap in Tesseract for portability.
 - Faint or low-contrast scanned print can defeat OCR entirely. It flags `OCR_USED` so
   you know to look, but it cannot tell you *which* characters it got wrong.
