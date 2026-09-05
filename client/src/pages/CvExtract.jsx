@@ -5,11 +5,11 @@ import {
   beginExtraction,
   getExtractionStatus,
   getExtractionResults,
-  extractionDownloadUrl,
   saveExtractionRows,
 } from "../api.js";
 import { IconUpload, IconDownload, IconCheck, IconMail, IconFileText } from "../icons.jsx";
 import CvReviewer from "../components/CvReviewer.jsx";
+import DownloadPicker from "../components/DownloadPicker.jsx";
 
 // Plain-English explanations for the flags cvextract raises, so a reviewer
 // knows what to actually check rather than decoding a constant name.
@@ -22,7 +22,7 @@ const FLAG_HELP = {
   NAME_JOINED_FROM_TWO_LINES: "Name was split across lines and rejoined.",
   EMAIL_LABEL_STRIPPED: "A label was glued to the address and removed. Confirm it.",
   EMAIL_ONLY_IN_REFEREE_BLOCK: "The only address sits under REFEREES — may be the referee's, not the candidate's.",
-  DUPLICATE_IN_BATCH: "The same address appears on more than one CV.",
+  DUPLICATE_IN_BATCH: "The same address appeared on more than one CV — the extra copies were removed automatically and only the cleanest one was kept here. Worth confirming this is the right copy.",
   NO_PHONE: "No phone number, Nigerian or foreign, found outside the referee block.",
   FOREIGN_PHONE: "No Nigerian mobile on this CV — a non-Nigerian number was used instead. Check the country code and digit count.",
   UNSUPPORTED_FORMAT: "File type not supported.",
@@ -136,9 +136,11 @@ export default function CvExtract({ onUseContacts }) {
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState(null);
   const [rows, setRows] = useState(null);
+  const [dupesRemoved, setDupesRemoved] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null); // { batch, batches, filesSent, filesTotal }
+  const [showDownloadPicker, setShowDownloadPicker] = useState(false);
   const timer = useRef(null);
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -209,8 +211,9 @@ export default function CvExtract({ onUseContacts }) {
         const s = await getExtractionStatus(id);
         setStatus(s);
         if (s.state === "done") {
-          const { rows } = await getExtractionResults(id);
+          const { rows, dupesRemoved } = await getExtractionResults(id);
           setRows(rows);
+          setDupesRemoved(dupesRemoved || 0);
           return;
         }
         if (s.state === "error") {
@@ -257,6 +260,7 @@ export default function CvExtract({ onUseContacts }) {
     setJobId(null);
     setStatus(null);
     setRows(null);
+    setDupesRemoved(0);
     setError("");
   }
 
@@ -266,13 +270,22 @@ export default function CvExtract({ onUseContacts }) {
     const flagged = rows.filter((r) => r.flags.length);
     const clean = rows.filter((r) => !r.flags.length);
     const sendable = rows.filter((r) => r.email.trim());
+    // Flagged first, then clean — the reviewer's Previous/Next walks this
+    // same order, so finishing the last flagged CV naturally lands on the
+    // first clean one instead of jumping around in upload order.
+    const orderedRows = [...flagged, ...clean];
 
     return (
       <div className="card">
         <h2>Extracted contacts</h2>
         <p className="summary">
-          <strong>{rows.length}</strong> CV(s) read — <strong>{clean.length}</strong> clean,{" "}
-          <strong>{flagged.length}</strong> need a look.
+          <strong>{rows.length}</strong> CV(s) read
+          {dupesRemoved > 0 && (
+            <>
+              {" "}(<strong>{dupesRemoved}</strong> duplicate{dupesRemoved === 1 ? "" : "s"} removed automatically)
+            </>
+          )}{" "}
+          — <strong>{clean.length}</strong> clean, <strong>{flagged.length}</strong> need a look.
         </p>
 
         {flagged.length > 0 && (
@@ -292,7 +305,7 @@ export default function CvExtract({ onUseContacts }) {
                     <Row
                       key={r.i}
                       row={r}
-                      onView={() => setViewing(rows.findIndex((x) => x.i === r.i))}
+                      onView={() => setViewing(orderedRows.findIndex((x) => x.i === r.i))}
                       onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))}
                     />
                   ))}
@@ -315,7 +328,7 @@ export default function CvExtract({ onUseContacts }) {
                     <Row
                       key={r.i}
                       row={r}
-                      onView={() => setViewing(rows.findIndex((x) => x.i === r.i))}
+                      onView={() => setViewing(orderedRows.findIndex((x) => x.i === r.i))}
                       onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))}
                     />
                   ))}
@@ -328,7 +341,7 @@ export default function CvExtract({ onUseContacts }) {
         {viewing !== null && (
           <CvReviewer
             jobId={jobId}
-            rows={rows}
+            rows={orderedRows}
             index={viewing}
             flagHelp={flagHelp}
             onIndexChange={setViewing}
@@ -340,13 +353,15 @@ export default function CvExtract({ onUseContacts }) {
           />
         )}
 
+        {showDownloadPicker && <DownloadPicker rows={rows} onClose={() => setShowDownloadPicker(false)} />}
+
         {error && <div className="banner error">{error}</div>}
 
         <div className="actions">
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <a className="secondary" href={extractionDownloadUrl(jobId)}>
+            <button type="button" className="secondary" onClick={() => setShowDownloadPicker(true)}>
               <IconDownload width={15} height={15} /> Download spreadsheet
-            </a>
+            </button>
             <button type="button" className="secondary" onClick={() => handleSave()} disabled={saveState === "saving"}>
               {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved to spreadsheet" : "Save corrections"}
             </button>

@@ -32,6 +32,12 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
     if (next >= 0 && next < rows.length) onIndexChange(next);
   }
 
+  // `rows` arrives flagged-first-then-clean, so the first row with no flags
+  // is exactly where the clean section starts — offer a shortcut there
+  // instead of making someone step through every remaining flagged CV first.
+  const firstCleanIndex = rows.findIndex((r) => r.flags.length === 0);
+  const canJumpToClean = row.flags.length > 0 && firstCleanIndex !== -1 && firstCleanIndex !== index;
+
   return (
     <div className="reviewer-overlay" onClick={onClose}>
       <div className="reviewer" onClick={(e) => e.stopPropagation()}>
@@ -42,9 +48,16 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
               {index + 1} of {rows.length}
             </span>
           </div>
-          <button type="button" className="link-button" onClick={onClose}>
-            Close
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            {canJumpToClean && (
+              <button type="button" className="link-button" onClick={() => onIndexChange(firstCleanIndex)}>
+                Skip to Clean list →
+              </button>
+            )}
+            <button type="button" className="link-button" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
 
         <div className="reviewer-body">

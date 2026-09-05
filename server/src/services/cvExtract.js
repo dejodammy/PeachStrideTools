@@ -138,9 +138,42 @@ export async function runExtraction(id) {
 }
 
 /**
+ * Two CVs sharing an email address are almost always the same person
+ * applying more than once — keep the cleanest copy (fewest flags; a tie
+ * keeps whichever was uploaded first) and drop the rest, rather than showing
+ * — and risking emailing — the same address twice. cvextract.py already
+ * tags every row in such a group with DUPLICATE_IN_BATCH, so the survivor
+ * still carries that flag and stays in "needs a look": dedup picks a copy,
+ * a human still confirms it was the right one. Rows with no email can't be
+ * matched this way and are never touched.
+ */
+function dedupeByEmail(rows) {
+  const groups = new Map();
+  const kept = [];
+  for (const r of rows) {
+    const key = r.email.toLowerCase();
+    if (!key) {
+      kept.push(r);
+      continue;
+    }
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, r);
+      kept.push(r);
+    } else if (r.flags.length < existing.flags.length) {
+      // This copy is cleaner than the one we kept — swap it in place.
+      kept[kept.indexOf(existing)] = r;
+      groups.set(key, r);
+    }
+  }
+  return { rows: kept.sort((a, b) => a.i - b.i), dupesRemoved: rows.length - kept.length };
+}
+
+/**
  * Reads the generated workbook back into rows the review UI can render.
  * Flags arrive as a single string from the sheet; split them so the UI can
- * show one chip per flag.
+ * show one chip per flag. Duplicate emails are collapsed to one row each —
+ * see dedupeByEmail.
  */
 export async function readResults(id) {
   const out = path.join(jobDir(id), "contacts.xlsx");
@@ -149,8 +182,8 @@ export async function readResults(id) {
   // read the bytes ourselves, the same way excel.js handles uploads.
   const wb = XLSX.read(await fsp.readFile(out), { type: "buffer" });
   const sheet = wb.Sheets["Contacts"] || wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-  return rows.map((r, i) => ({
+  const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const rows = raw.map((r, i) => ({
     i,
     name: String(r["Name"] ?? "").trim(),
     email: String(r["Email"] ?? "").trim(),
@@ -163,6 +196,7 @@ export async function readResults(id) {
       .map((f) => f.trim())
       .filter(Boolean),
   }));
+  return dedupeByEmail(rows);
 }
 
 export function resultPath(id) {

@@ -105,9 +105,9 @@ router.get("/:id/status", async (req, res) => {
 });
 
 router.get("/:id/results", async (req, res) => {
-  const rows = await readResults(req.params.id);
-  if (!rows) return res.status(404).json({ error: "No results yet." });
-  res.json({ rows });
+  const result = await readResults(req.params.id);
+  if (!result) return res.status(404).json({ error: "No results yet." });
+  res.json(result);
 });
 
 // Serves an uploaded CV so the reviewer can read the actual document while

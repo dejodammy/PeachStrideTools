@@ -1254,3 +1254,60 @@ tbody tr.row-flagged:hover td {
   .reviewer-body { flex-direction: column; }
   .reviewer-fields { max-width: none; }
 }
+
+/* ---------- Download column picker ---------- */
+
+.download-picker {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  width: min(420px, 100%);
+  padding: 24px;
+  box-shadow: 0 24px 60px -12px rgba(18, 30, 43, 0.4);
+}
+
+.download-picker h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.download-picker .hint {
+  margin: 0 0 16px;
+}
+
+.download-picker-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 20px;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.download-picker-columns label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.download-picker-columns label:hover {
+  background: var(--surface);
+}
+
+.download-picker-columns input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.download-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
