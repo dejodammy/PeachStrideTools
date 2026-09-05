@@ -16,7 +16,10 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
 
   if (!row) return null;
 
-  const isPdf = /\.pdf$/i.test(row.file);
+  // .docx/.doc are converted to PDF server-side (and cached), so they render
+  // the same way as a native PDF here — only a genuinely unsupported format
+  // falls back to "open it yourself".
+  const previewable = /\.(pdf|docx?)$/i.test(row.file);
   const url = cvFileUrl(jobId, row.file);
 
   function commit(next) {
@@ -46,14 +49,11 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
 
         <div className="reviewer-body">
           <div className="reviewer-doc">
-            {isPdf ? (
+            {previewable ? (
               <iframe src={url} title={row.file} />
             ) : (
               <div className="reviewer-nopreview">
-                <p>
-                  Word documents can't be previewed in the browser. Open it to read the contact
-                  details, then type them in on the right.
-                </p>
+                <p>This file can't be previewed here. Open it to read the contact details, then type them in on the right.</p>
                 <a className="secondary" href={url} target="_blank" rel="noreferrer">
                   Open {row.file} <IconExternal width={13} height={13} />
                 </a>

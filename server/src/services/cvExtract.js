@@ -3,6 +3,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import XLSX from "xlsx";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -177,6 +178,93 @@ export function sourceFilePath(id, name) {
   const p = path.resolve(input, path.basename(String(name || "")));
   if (!p.startsWith(input + path.sep)) return null;
   return fs.existsSync(p) ? p : null;
+}
+
+// Same binary the .doc text-extraction fallback in cvextract.py already
+// relies on — if that's installed, this is too.
+function sofficeBin() {
+  return process.env.SOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
+}
+
+const CONVERT_TIMEOUT_MS = 60_000;
+// Two viewers opening the same .docx moments apart shouldn't both pay for a
+// LibreOffice launch — the second request just waits on the first's promise.
+const conversionsInFlight = new Map();
+
+async function convertToPdf(sourcePath, id) {
+  const outDir = path.join(jobDir(id), "converted");
+  await fsp.mkdir(outDir, { recursive: true });
+  const outPath = path.join(outDir, `${path.parse(sourcePath).name}.pdf`);
+  if (fs.existsSync(outPath)) return outPath;
+  if (conversionsInFlight.has(outPath)) return conversionsInFlight.get(outPath);
+
+  // A dedicated profile per run avoids LibreOffice's "another instance is
+  // already running" lock error when two conversions land at once.
+  const profile = path.join(outDir, `.lo-profile-${randomUUID()}`);
+
+  const job = new Promise((resolve, reject) => {
+    const proc = spawn(
+      sofficeBin(),
+      [
+        `-env:UserInstallation=file://${profile.replace(/\\/g, "/")}`,
+        "--headless",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        outDir,
+        sourcePath,
+      ],
+      {}
+    );
+    let stderr = "";
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      proc.kill("SIGKILL");
+      reject(new Error("soffice conversion timed out"));
+    }, CONVERT_TIMEOUT_MS);
+
+    proc.stderr?.on("data", (d) => (stderr += d));
+    proc.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+    proc.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (code === 0 && fs.existsSync(outPath)) resolve(outPath);
+      else reject(new Error(`soffice exited ${code}: ${stderr.slice(0, 300)}`));
+    });
+  }).finally(() => {
+    conversionsInFlight.delete(outPath);
+    fsp.rm(profile, { recursive: true, force: true }).catch(() => {});
+  });
+
+  conversionsInFlight.set(outPath, job);
+  return job;
+}
+
+/**
+ * A viewable PDF for an uploaded CV: the file itself if it's already a PDF,
+ * or a converted-and-cached copy for .docx/.doc so the reviewer can render it
+ * inline instead of forcing a download. Null if conversion isn't possible
+ * (LibreOffice missing, or it failed on this particular file) — callers
+ * should fall back to serving the original.
+ */
+export async function previewPdfPath(id, name) {
+  const source = sourceFilePath(id, name);
+  if (!source) return null;
+  if (path.extname(source).toLowerCase() === ".pdf") return source;
+  try {
+    return await convertToPdf(source, id);
+  } catch (err) {
+    console.error(`Preview conversion failed for ${name}:`, err.message);
+    return null;
+  }
 }
 
 /**

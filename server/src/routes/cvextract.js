@@ -13,6 +13,7 @@ import {
   readResults,
   resultPath,
   sourceFilePath,
+  previewPdfPath,
   applyEdits,
 } from "../services/cvExtract.js";
 
@@ -111,13 +112,23 @@ router.get("/:id/results", async (req, res) => {
 
 // Serves an uploaded CV so the reviewer can read the actual document while
 // correcting what was extracted from it. inline so the browser renders PDFs.
-router.get("/:id/file/:name", (req, res) => {
-  const p = sourceFilePath(req.params.id, req.params.name);
-  if (!p) return res.status(404).send("File not found.");
-  const ext = path.extname(p).toLowerCase();
-  if (ext === ".pdf") res.type("application/pdf");
-  res.setHeader("Content-Disposition", `inline; filename="${path.basename(p)}"`);
-  res.sendFile(p);
+router.get("/:id/file/:name", async (req, res) => {
+  const source = sourceFilePath(req.params.id, req.params.name);
+  if (!source) return res.status(404).send("File not found.");
+
+  // .docx/.doc are converted to PDF (and cached) so the reviewer can render
+  // them the same way as a native PDF, instead of forcing a download.
+  const preview = await previewPdfPath(req.params.id, req.params.name);
+  if (preview) {
+    res.type("application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${path.parse(source).name}.pdf"`);
+    return res.sendFile(preview);
+  }
+
+  // Conversion unavailable or failed on this file — fall back to the
+  // original so "open in a new tab" still works even without a preview.
+  res.setHeader("Content-Disposition", `inline; filename="${path.basename(source)}"`);
+  res.sendFile(source);
 });
 
 // Writes reviewer corrections into the workbook, so the download matches what
