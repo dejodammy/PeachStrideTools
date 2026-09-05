@@ -239,9 +239,12 @@ async function convertToPdf(sourcePath, id) {
       if (code === 0 && fs.existsSync(outPath)) resolve(outPath);
       else reject(new Error(`soffice exited ${code}: ${stderr.slice(0, 300)}`));
     });
-  }).finally(() => {
+  }).finally(async () => {
     conversionsInFlight.delete(outPath);
-    fsp.rm(profile, { recursive: true, force: true }).catch(() => {});
+    // Awaited (not fire-and-forget): a caller reading the converted/ folder
+    // right after this resolves — the retention sweep, a debug listing —
+    // should never see a stray profile dir still being torn down.
+    await fsp.rm(profile, { recursive: true, force: true }).catch(() => {});
   });
 
   conversionsInFlight.set(outPath, job);
