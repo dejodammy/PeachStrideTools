@@ -10,6 +10,7 @@ export const DOWNLOAD_COLUMNS = [
   { key: "readAs", label: "Read As" },
   { key: "otherEmails", label: "Other Emails" },
   { key: "flags", label: "Flags" },
+  { key: "approved", label: "Approved" },
 ];
 
 const STORAGE_KEY = "cvextract:downloadColumns";

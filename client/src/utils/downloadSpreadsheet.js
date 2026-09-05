@@ -9,7 +9,9 @@ export async function buildContactsSpreadsheet(rows, columns, filename = "cv_con
   const data = rows.map((r) => {
     const obj = {};
     for (const c of columns) {
-      obj[c.label] = c.key === "flags" ? (r.flags || []).join(", ") : r[c.key] || "";
+      if (c.key === "flags") obj[c.label] = (r.flags || []).join(", ");
+      else if (c.key === "approved") obj[c.label] = r.approved ? "Yes" : "";
+      else obj[c.label] = r[c.key] || "";
     }
     return obj;
   });

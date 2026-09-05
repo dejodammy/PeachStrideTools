@@ -101,8 +101,13 @@ async function withRetry(fn) {
 }
 
 function Row({ row, onChange, onView }) {
+  // A row can carry flags and still be approved — a reviewer confirmed
+  // there's nothing actually wrong with it. Show that as a plain "Approved"
+  // mark instead of the original warning chips, and don't tint the row like
+  // an unresolved one.
+  const stillFlagged = row.flags.length > 0 && !row.approved;
   return (
-    <tr className={row.flags.length ? "row-flagged" : ""}>
+    <tr className={stillFlagged ? "row-flagged" : ""}>
       <td>
         <button type="button" className="view-btn" onClick={onView} title={`Open ${row.file}`}>
           <IconFileText width={14} height={14} /> View
@@ -119,11 +124,17 @@ function Row({ row, onChange, onView }) {
       </td>
       <td className="cell-file" title={row.file}>{row.file}</td>
       <td className="cell-flags">
-        {row.flags.map((f) => (
-          <span className="flag-chip" key={f} title={flagHelp(f)}>
-            {f}
+        {row.approved ? (
+          <span className="flag-chip flag-chip-approved" title="A reviewer checked this CV and confirmed it's fine.">
+            Approved
           </span>
-        ))}
+        ) : (
+          row.flags.map((f) => (
+            <span className="flag-chip" key={f} title={flagHelp(f)}>
+              {f}
+            </span>
+          ))
+        )}
       </td>
     </tr>
   );
@@ -253,6 +264,26 @@ export default function CvExtract({ onUseContacts }) {
     }
   }
 
+  // "This CV is fine, nothing to fix" — moves it into Clean without touching
+  // its extracted values, and lands the reviewer on whatever flagged CV comes
+  // next so a whole batch can be worked through one approval at a time.
+  // Saved immediately (not just on close) so a long review session can't
+  // lose approvals to a closed tab partway through.
+  function handleApprove(i) {
+    const updated = rows.map((x) => (x.i === i ? { ...x, approved: true } : x));
+    setRows(updated);
+    handleSave(updated);
+
+    const stillNeedsReview = updated.filter((r) => r.flags.length > 0 && !r.approved);
+    if (stillNeedsReview.length === 0) {
+      setViewing(null);
+      return;
+    }
+    const next = stillNeedsReview.find((r) => r.i > i) || stillNeedsReview[0];
+    const newOrdered = [...stillNeedsReview, ...updated.filter((r) => r.flags.length === 0 || r.approved)];
+    setViewing(newOrdered.findIndex((x) => x.i === next.i));
+  }
+
   function reset() {
     clearTimeout(timer.current);
     forgetJob();
@@ -267,8 +298,11 @@ export default function CvExtract({ onUseContacts }) {
   // ---- Results: flagged first, because guessing at a contact address is the
   // one failure this tool exists to prevent. ----
   if (rows) {
-    const flagged = rows.filter((r) => r.flags.length);
-    const clean = rows.filter((r) => !r.flags.length);
+    // A flagged CV a reviewer has approved counts as clean from here on —
+    // it keeps its original flags (useful history), it just no longer needs
+    // anyone's attention.
+    const flagged = rows.filter((r) => r.flags.length && !r.approved);
+    const clean = rows.filter((r) => !r.flags.length || r.approved);
     const sendable = rows.filter((r) => r.email.trim());
     // Flagged first, then clean — the reviewer's Previous/Next walks this
     // same order, so finishing the last flagged CV naturally lands on the
@@ -350,6 +384,7 @@ export default function CvExtract({ onUseContacts }) {
               handleSave();
             }}
             onChange={(u) => setRows(rows.map((x) => (x.i === u.i ? u : x)))}
+            onApprove={handleApprove}
           />
         )}
 

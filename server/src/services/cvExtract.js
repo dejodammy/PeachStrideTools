@@ -139,15 +139,20 @@ export async function runExtraction(id) {
 
 /**
  * Two CVs sharing an email address are almost always the same person
- * applying more than once — keep the cleanest copy (fewest flags; a tie
- * keeps whichever was uploaded first) and drop the rest, rather than showing
- * — and risking emailing — the same address twice. cvextract.py already
- * tags every row in such a group with DUPLICATE_IN_BATCH, so the survivor
- * still carries that flag and stays in "needs a look": dedup picks a copy,
- * a human still confirms it was the right one. Rows with no email can't be
- * matched this way and are never touched.
+ * applying more than once — keep the cleanest copy and drop the rest,
+ * rather than showing — and risking emailing — the same address twice.
+ * A copy a reviewer already approved outranks flag count outright (a human
+ * decision beats an automatic one); otherwise fewer flags wins; a tie keeps
+ * whichever was uploaded first. cvextract.py already tags every row in such
+ * a group with DUPLICATE_IN_BATCH, so an unapproved survivor still carries
+ * that flag and stays in "needs a look" — dedup picks a copy, a human still
+ * confirms it was the right one. Rows with no email can't be matched this
+ * way and are never touched.
  */
 function dedupeByEmail(rows) {
+  const isBetter = (candidate, current) =>
+    candidate.approved !== current.approved ? candidate.approved : candidate.flags.length < current.flags.length;
+
   const groups = new Map();
   const kept = [];
   for (const r of rows) {
@@ -160,8 +165,7 @@ function dedupeByEmail(rows) {
     if (!existing) {
       groups.set(key, r);
       kept.push(r);
-    } else if (r.flags.length < existing.flags.length) {
-      // This copy is cleaner than the one we kept — swap it in place.
+    } else if (isBetter(r, existing)) {
       kept[kept.indexOf(existing)] = r;
       groups.set(key, r);
     }
@@ -172,8 +176,10 @@ function dedupeByEmail(rows) {
 /**
  * Reads the generated workbook back into rows the review UI can render.
  * Flags arrive as a single string from the sheet; split them so the UI can
- * show one chip per flag. Duplicate emails are collapsed to one row each —
- * see dedupeByEmail.
+ * show one chip per flag. "Approved" only exists once a reviewer has
+ * confirmed at least one flagged CV — applyEdits adds the column the first
+ * time it's needed, so most jobs never have it. Duplicate emails are
+ * collapsed to one row each — see dedupeByEmail.
  */
 export async function readResults(id) {
   const out = path.join(jobDir(id), "contacts.xlsx");
@@ -195,6 +201,7 @@ export async function readResults(id) {
       .split(/[,;]\s*/)
       .map((f) => f.trim())
       .filter(Boolean),
+    approved: String(r["Approved"] ?? "").trim().toLowerCase() === "yes",
   }));
   return dedupeByEmail(rows);
 }
@@ -308,13 +315,17 @@ export async function previewPdfPath(id, name) {
  * Applies reviewer corrections back into the generated workbook so the
  * downloaded spreadsheet matches what they fixed on screen. Values are written
  * into the existing sheets rather than rebuilding the file, so the structure
- * cvextract produced (including the Flag Guide) survives.
+ * cvextract produced (including the Flag Guide) survives. "Approved" isn't a
+ * column cvextract.py writes — it's added the first time a save actually
+ * needs it, so a reviewer confirming a flagged CV survives a reload instead
+ * of reverting the moment the page refreshes.
  */
 export async function applyEdits(id, edits) {
   const out = resultPath(id);
   if (!fs.existsSync(out)) return false;
 
   const byFile = new Map(edits.map((e) => [e.file, e]));
+  const needsApprovedColumn = edits.some((e) => e.approved !== undefined);
   const wb = XLSX.read(await fsp.readFile(out), { type: "buffer", cellStyles: true });
 
   for (const sheetName of wb.SheetNames) {
@@ -330,6 +341,14 @@ export async function applyEdits(id, edits) {
       if (cell?.v) header[String(cell.v)] = c;
     }
 
+    if (needsApprovedColumn && header["Approved"] === undefined) {
+      const newCol = range.e.c + 1;
+      header["Approved"] = newCol;
+      ws[XLSX.utils.encode_cell({ r: range.s.r, c: newCol })] = { t: "s", v: "Approved" };
+      range.e.c = newCol;
+      ws["!ref"] = XLSX.utils.encode_range(range);
+    }
+
     rows.forEach((row, i) => {
       const edit = byFile.get(String(row["Source File"]));
       if (!edit) return;
@@ -338,6 +357,10 @@ export async function applyEdits(id, edits) {
         if (header[col] === undefined || value === undefined) continue;
         const addr = XLSX.utils.encode_cell({ r, c: header[col] });
         ws[addr] = { ...(ws[addr] || {}), t: "s", v: String(value ?? "") };
+      }
+      if (edit.approved !== undefined && header["Approved"] !== undefined) {
+        const addr = XLSX.utils.encode_cell({ r, c: header["Approved"] });
+        ws[addr] = { ...(ws[addr] || {}), t: "s", v: edit.approved ? "Yes" : "" };
       }
     });
   }

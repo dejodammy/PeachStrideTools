@@ -8,7 +8,7 @@ import { IconArrowLeft, IconCheck, IconExternal } from "../icons.jsx";
  * losing your place — the flags tell you *what* to distrust, this shows you the
  * evidence to fix it against.
  */
-export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange, onClose, flagHelp }) {
+export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange, onClose, onApprove, flagHelp }) {
   const row = rows[index];
   const [draft, setDraft] = useState(row);
 
@@ -32,11 +32,14 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
     if (next >= 0 && next < rows.length) onIndexChange(next);
   }
 
-  // `rows` arrives flagged-first-then-clean, so the first row with no flags
-  // is exactly where the clean section starts — offer a shortcut there
-  // instead of making someone step through every remaining flagged CV first.
-  const firstCleanIndex = rows.findIndex((r) => r.flags.length === 0);
-  const canJumpToClean = row.flags.length > 0 && firstCleanIndex !== -1 && firstCleanIndex !== index;
+  // `rows` arrives flagged-first-then-clean (an approved row counts as
+  // clean even though it still carries its original flags), so the first
+  // row that's not still-needing-review is exactly where the clean section
+  // starts — offer a shortcut there instead of making someone step through
+  // every remaining flagged CV first.
+  const stillFlagged = row.flags.length > 0 && !row.approved;
+  const firstCleanIndex = rows.findIndex((r) => r.flags.length === 0 || r.approved);
+  const canJumpToClean = stillFlagged && firstCleanIndex !== -1 && firstCleanIndex !== index;
 
   return (
     <div className="reviewer-overlay" onClick={onClose}>
@@ -77,6 +80,11 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
           <div className="reviewer-fields">
             {row.flags.length > 0 && (
               <div className="reviewer-flags">
+                {row.approved && (
+                  <p className="reviewer-approved-note">
+                    <span className="flag-chip flag-chip-approved">Approved</span> Confirmed fine despite:
+                  </p>
+                )}
                 {row.flags.map((f) => (
                   <div className="reviewer-flag" key={f}>
                     <span className="flag-chip">{f}</span>
@@ -84,6 +92,12 @@ export default function CvReviewer({ jobId, rows, index, onChange, onIndexChange
                   </div>
                 ))}
               </div>
+            )}
+
+            {stillFlagged && (
+              <button type="button" className="approve-btn" onClick={() => onApprove(row.i)}>
+                <IconCheck width={15} height={15} /> No issues — approve &amp; continue
+              </button>
             )}
 
             <label className="field">
