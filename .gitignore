@@ -19,6 +19,17 @@ npm-debug.log*
 # Personal test/demo spreadsheet (contains a real email address)
 demo_recipients.xlsx
 
+# Real employee/candidate data that ended up in the repo root and in an old
+# cvExtract/ snapshot by accident — purged from history; never again.
+/letters/
+/employee.xlsx
+/employees.xlsx
+/empp.xlsx
+/ses_test_recipients.xlsx
+/guarantor_form.pdf
+/handbook.pdf
+/cvExtract/
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db
