@@ -203,7 +203,7 @@ export default function CvExtract({ onUseContacts }) {
     }
   }
 
-  function poll(id) {
+  function poll(id, misses = 0) {
     (async function tick() {
       try {
         const s = await getExtractionStatus(id);
@@ -218,10 +218,22 @@ export default function CvExtract({ onUseContacts }) {
           return;
         }
       } catch (err) {
-        setError(err.message);
+        // A status check can land in the narrow gap between "extraction was
+        // told to start" and its status file actually being written — retry
+        // a few times before treating it as a real failure, rather than
+        // giving up on what might just be a one-tick race.
+        if (misses < 5) {
+          timer.current = setTimeout(() => poll(id, misses + 1), 1000);
+          return;
+        }
+        // Whatever broke contact with this job — a dropped connection, or a
+        // tab that was open before an update changed how the server expects
+        // to be talked to — a reload fixes both: it picks up the current
+        // client code, and resumes this exact job if it's still running.
+        setError("Lost track of this extraction. Refresh the page and try again — if it's still running, reloading will pick it back up.");
         return;
       }
-      timer.current = setTimeout(tick, 1000);
+      timer.current = setTimeout(() => poll(id, 0), 1000);
     })();
   }
 
