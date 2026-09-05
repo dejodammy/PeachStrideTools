@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   jobDir,
+  jobStarted,
   runExtraction,
   readStatus,
   readResults,
@@ -30,26 +31,66 @@ function safeName(name, i) {
   return base.slice(0, 120) || `file_${i}`;
 }
 
-router.post("/", upload.array("cvs", 500), async (req, res) => {
-  const files = (req.files || []).filter((f) => SUPPORTED.has(path.extname(f.originalname).toLowerCase()));
-  if (files.length === 0) {
-    return res.status(400).json({ error: "Upload at least one .pdf, .docx or .doc file." });
-  }
-
-  const id = randomUUID();
+// Writes a batch of files into a job's input folder. Re-reads whatever's
+// already there first so names stay unique across calls too — a large batch
+// arrives as several of these in a row (see /:id/files below), not one shot.
+async function saveFiles(id, files) {
   const input = path.join(jobDir(id), "input");
   await fsp.mkdir(input, { recursive: true });
 
-  const seen = new Set();
-  for (const [i, f] of files.entries()) {
+  const existing = await fsp.readdir(input).catch(() => []);
+  const seen = new Set(existing.map((n) => n.toLowerCase()));
+
+  let i = existing.length;
+  for (const f of files) {
     let name = safeName(f.originalname, i);
     // Two CVs can legitimately share a filename; don't let one overwrite the other.
     while (seen.has(name.toLowerCase())) name = `${path.parse(name).name}_${i}${path.extname(name)}`;
     seen.add(name.toLowerCase());
     await fsp.writeFile(path.join(input, name), f.buffer);
+    i += 1;
   }
+}
 
+function acceptedFiles(req) {
+  return (req.files || []).filter((f) => SUPPORTED.has(path.extname(f.originalname).toLowerCase()));
+}
+
+// Starts a new job with its first batch of files. Extraction doesn't begin
+// yet — a large selection arrives as several smaller requests (kinder to a
+// slow or flaky connection than one huge multipart upload), so the browser
+// calls /:id/files for the rest, then /:id/start once everything has landed.
+router.post("/", upload.array("cvs", 500), async (req, res) => {
+  const files = acceptedFiles(req);
+  if (files.length === 0) {
+    return res.status(400).json({ error: "Upload at least one .pdf, .docx or .doc file." });
+  }
+  const id = randomUUID();
+  await saveFiles(id, files);
   res.status(202).json({ id, total: files.length, skipped: (req.files || []).length - files.length });
+});
+
+// Appends another batch to a job that hasn't started extracting yet.
+router.post("/:id/files", upload.array("cvs", 500), async (req, res) => {
+  const { id } = req.params;
+  if (!fs.existsSync(jobDir(id))) return res.status(404).json({ error: "Job not found." });
+  if (await jobStarted(id)) return res.status(409).json({ error: "This job has already started — nothing more can be added." });
+
+  const files = acceptedFiles(req);
+  if (files.length === 0) {
+    return res.status(400).json({ error: "Upload at least one .pdf, .docx or .doc file." });
+  }
+  await saveFiles(id, files);
+  res.status(202).json({ total: files.length, skipped: (req.files || []).length - files.length });
+});
+
+// Begins extraction over everything uploaded for this job so far.
+router.post("/:id/start", async (req, res) => {
+  const { id } = req.params;
+  if (!fs.existsSync(jobDir(id))) return res.status(404).json({ error: "Job not found." });
+  if (await jobStarted(id)) return res.status(409).json({ error: "This job has already started." });
+
+  res.status(202).json({ id });
 
   // Fire-and-forget; the browser polls /status.
   running.add(id);

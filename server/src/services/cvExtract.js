@@ -26,6 +26,13 @@ export function jobDir(id) {
   return path.join(EXTRACTIONS_DIR, id);
 }
 
+// status.json is only ever written once runExtraction() begins, so its
+// presence is exactly "has this job already started" — used to stop more
+// files being appended, or a second extraction being kicked off, once it has.
+export async function jobStarted(id) {
+  return fs.existsSync(path.join(jobDir(id), "status.json"));
+}
+
 export async function readStatus(id) {
   try {
     return JSON.parse(await fsp.readFile(path.join(jobDir(id), "status.json"), "utf8"));

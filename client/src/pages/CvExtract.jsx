@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  startExtraction,
+  createExtractionJob,
+  appendExtractionFiles,
+  beginExtraction,
   getExtractionStatus,
   getExtractionResults,
   extractionDownloadUrl,
@@ -62,6 +64,42 @@ function recalledJob() {
   }
 }
 
+// A single request carrying a large batch is what got a 300-file upload
+// killed mid-transfer on a slow connection — Caddy and the server both saw
+// the browser cancel it partway through. Splitting the selection into
+// several smaller requests means one stalled batch is a small, retryable
+// loss instead of the whole thing.
+const BATCH_TARGET_BYTES = 12 * 1024 * 1024; // ~12MB per request finishes in well under a minute on a poor connection
+const BATCH_MAX_FILES = 150; // a ceiling for selections of many tiny files, so one request never carries an unreasonable count
+
+function chunkFiles(files) {
+  const batches = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const f of files) {
+    if (current.length && (currentBytes + f.size > BATCH_TARGET_BYTES || current.length >= BATCH_MAX_FILES)) {
+      batches.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(f);
+    currentBytes += f.size;
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+// One retry, after a short pause, before giving up on a batch — most drops
+// on a shaky connection are a one-off blip, not a lost cause.
+async function withRetry(fn) {
+  try {
+    return await fn();
+  } catch {
+    await new Promise((r) => setTimeout(r, 1200));
+    return await fn();
+  }
+}
+
 function Row({ row, onChange, onView }) {
   return (
     <tr className={row.flags.length ? "row-flagged" : ""}>
@@ -100,6 +138,7 @@ export default function CvExtract({ onUseContacts }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // { batch, batches, filesSent, filesTotal }
   const timer = useRef(null);
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -125,20 +164,42 @@ export default function CvExtract({ onUseContacts }) {
     if (!files.length) return setError("Choose some CV files first.");
     if (submitting) return; // already uploading — the button is disabled, but guard the double-submit anyway
 
+    const batches = chunkFiles(files);
     setSubmitting(true);
-    const fd = new FormData();
-    for (const f of files) fd.append("cvs", f);
+    setUploadProgress({ batch: 0, batches: batches.length, filesSent: 0, filesTotal: files.length });
 
     try {
-      const { id, skipped } = await startExtraction(fd);
+      let id = null;
+      let filesSent = 0;
+      let skippedTotal = 0;
+
+      for (let i = 0; i < batches.length; i += 1) {
+        const batch = batches[i];
+        const fd = new FormData();
+        for (const f of batch) fd.append("cvs", f);
+
+        const result = await withRetry(() => (id ? appendExtractionFiles(id, fd) : createExtractionJob(fd)));
+        id = id || result.id;
+        skippedTotal += result.skipped || 0;
+        filesSent += batch.length;
+        setUploadProgress({ batch: i + 1, batches: batches.length, filesSent, filesTotal: files.length });
+      }
+
+      await beginExtraction(id);
       rememberJob(id);
       setJobId(id);
-      if (skipped) setError(`${skipped} file(s) skipped — only .pdf, .docx and .doc are read.`);
+      if (skippedTotal) setError(`${skippedTotal} file(s) skipped — only .pdf, .docx and .doc are read.`);
       poll(id);
     } catch (err) {
-      setError(err.message);
+      // A batch failed twice in a row — on a batch this small (~12MB) that
+      // almost always means the connection itself dropped, not a server fault.
+      setError(
+        "That upload didn't go through — the connection dropped partway through. " +
+          "Try again, ideally on a steadier connection; smaller selections are less likely to be affected."
+      );
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   }
 
@@ -366,7 +427,10 @@ export default function CvExtract({ onUseContacts }) {
       >
         {submitting ? (
           <>
-            <span className="btn-spinner" /> Uploading {files.length} file(s)…
+            <span className="btn-spinner" />
+            {uploadProgress && uploadProgress.batches > 1
+              ? `Uploading ${uploadProgress.filesSent} of ${uploadProgress.filesTotal} files (batch ${uploadProgress.batch} of ${uploadProgress.batches})…`
+              : `Uploading ${files.length} file(s)…`}
           </>
         ) : (
           <>

@@ -65,9 +65,22 @@ export async function logout() {
 }
 
 // ---- CV extraction ----
+// A big batch is uploaded as several smaller requests against one job, so a
+// single slow or flaky connection can't lose the whole thing at once:
+// createExtractionJob (first batch) -> appendExtractionFiles (rest) -> beginExtraction.
 
-export async function startExtraction(formData) {
+export async function createExtractionJob(formData) {
   const res = await fetch("/api/cvextract", { method: "POST", body: formData });
+  return handle(res);
+}
+
+export async function appendExtractionFiles(id, formData) {
+  const res = await fetch(`/api/cvextract/${id}/files`, { method: "POST", body: formData });
+  return handle(res);
+}
+
+export async function beginExtraction(id) {
+  const res = await fetch(`/api/cvextract/${id}/start`, { method: "POST" });
   return handle(res);
 }
 
