@@ -5,6 +5,7 @@ import SendingStep from "./pages/SendingStep.jsx";
 import CompleteStep from "./pages/CompleteStep.jsx";
 import LoginScreen from "./pages/LoginScreen.jsx";
 import CvExtract from "./pages/CvExtract.jsx";
+import IdCards from "./pages/IdCards.jsx";
 import { IconCheck } from "./icons.jsx";
 import { getMe, logout } from "./api.js";
 import { buildRecipientsFile } from "./utils/buildRecipientsFile.js";
@@ -22,7 +23,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authError] = useState(authErrorFromUrl);
 
-  const [tool, setTool] = useState("mailer"); // "mailer" | "cv"
+  const [tool, setTool] = useState("mailer"); // "mailer" | "cv" | "idcards"
   const [step, setStep] = useState(0);
   const [campaign, setCampaign] = useState(null);
   const [finalStatus, setFinalStatus] = useState(null);
@@ -61,7 +62,7 @@ export default function App() {
   if (!user) return <LoginScreen error={authError} />;
 
   return (
-    <div className={`app${tool === "cv" ? " app-wide" : ""}`}>
+    <div className={`app${tool === "cv" || tool === "idcards" ? " app-wide" : ""}`}>
       <header className="app-header">
         <div className="app-header-top">
           <div className="brand">
@@ -76,11 +77,19 @@ export default function App() {
             </button>
           </div>
         </div>
-        <h1>{tool === "mailer" ? "Send a personalized campaign" : "Extract contacts from CVs"}</h1>
+        <h1>
+          {tool === "mailer"
+            ? "Send a personalized campaign"
+            : tool === "cv"
+              ? "Extract contacts from CVs"
+              : "Generate staff ID cards"}
+        </h1>
         <p>
           {tool === "mailer"
             ? "Upload a recipient list, compose one email, optionally attach a personalized PDF per recipient, and send."
-            : "Read names, emails and phone numbers out of a batch of CVs, review anything uncertain, then mail them."}
+            : tool === "cv"
+              ? "Read names, emails and phone numbers out of a batch of CVs, review anything uncertain, then mail them."
+              : "Upload a staff spreadsheet and photos, and get one ID card per employee — no more building them one by one."}
         </p>
       </header>
 
@@ -99,11 +108,22 @@ export default function App() {
         >
           CV Extract
         </button>
+        <button
+          type="button"
+          className={tool === "idcards" ? "active" : ""}
+          onClick={() => setTool("idcards")}
+        >
+          ID Cards
+        </button>
       </nav>
 
       {tool === "cv" ? (
         <main>
           <CvExtract onUseContacts={handleUseContacts} />
+        </main>
+      ) : tool === "idcards" ? (
+        <main>
+          <IdCards />
         </main>
       ) : (
       <>

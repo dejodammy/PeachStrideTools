@@ -110,3 +110,65 @@ export async function saveExtractionRows(id, rows) {
   });
   return handle(res);
 }
+
+// ---- ID cards ----
+
+export async function getIdCardBrands() {
+  const res = await fetch("/api/idcards/brands");
+  return handle(res);
+}
+
+export async function readIdCardRoster(file) {
+  const formData = new FormData();
+  formData.append("roster", file);
+  const res = await fetch("/api/idcards/roster", { method: "POST", body: formData });
+  return handle(res);
+}
+
+export async function previewIdCards(formData) {
+  const res = await fetch("/api/idcards/preview", { method: "POST", body: formData });
+  return handle(res);
+}
+
+// Not JSON — the response body is one card's PNG.
+export async function downloadIdCard(formData) {
+  const res = await fetch("/api/idcards/card", { method: "POST", body: formData });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return res.blob();
+}
+
+// Not JSON — the response body is the zip file itself, so this doesn't go through handle().
+export async function generateIdCards(formData) {
+  const res = await fetch("/api/idcards/generate", { method: "POST", body: formData });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return res.blob();
+}
+
+// Not JSON — the response body is the prepared image. Resolves to null when the
+// server found nothing to work with (no ink in a "signature"), so the caller
+// can fall back to the original upload.
+export async function prepareIdCardImage(file, kind) {
+  const formData = new FormData();
+  formData.append("kind", kind);
+  formData.append("image", file);
+  const res = await fetch("/api/idcards/prepare-image", { method: "POST", body: formData });
+  if (res.status === 422) return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return res.blob();
+}
+
+export async function classifyIdCardImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch("/api/idcards/classify-image", { method: "POST", body: formData });
+  return (await handle(res)).kind;
+}

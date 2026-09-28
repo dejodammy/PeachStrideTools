@@ -7,6 +7,8 @@ import {
   isEmailAllowed,
   createSessionToken,
   verifySessionToken,
+  devAuthBypass,
+  devAuthEmail,
 } from "../services/auth.js";
 
 const router = express.Router();
@@ -54,6 +56,7 @@ router.post("/logout", (req, res) => {
 });
 
 router.get("/me", (req, res) => {
+  if (devAuthBypass) return res.json({ email: devAuthEmail });
   const email = verifySessionToken(req.cookies?.[COOKIE_NAME]);
   if (!email) return res.status(401).json({ error: "Not signed in." });
   res.json({ email });

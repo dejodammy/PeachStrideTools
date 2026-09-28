@@ -1,4 +1,4 @@
-import { authConfigured, verifySessionToken } from "../services/auth.js";
+import { authConfigured, verifySessionToken, devAuthBypass, devAuthEmail } from "../services/auth.js";
 
 /**
  * Protects the API routes that actually matter — creating/sending campaigns,
@@ -9,6 +9,10 @@ import { authConfigured, verifySessionToken } from "../services/auth.js";
  * anything sensitive, and the health check is useful unauthenticated.
  */
 export function requireAuth(req, res, next) {
+  if (devAuthBypass) {
+    req.userEmail = devAuthEmail;
+    return next();
+  }
   if (!authConfigured) {
     // Auth isn't set up yet (no GOOGLE_CLIENT_ID etc.) — fail closed with a
     // clear message rather than silently leaving the API open.

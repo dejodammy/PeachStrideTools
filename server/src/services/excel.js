@@ -41,3 +41,45 @@ export function parseRecipients(buffer) {
 
   return { columns, rows, dropped };
 }
+
+/**
+ * Parse an uploaded staff spreadsheet buffer for ID card generation. Requires a
+ * "Name" column (exact header); rows without a name are dropped. Unlike
+ * parseRecipients, no Email column is required — ID cards don't need one.
+ */
+export function parseIdCardRows(buffer) {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error("The spreadsheet has no sheets.");
+  const sheet = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+
+  if (rawRows.length === 0) {
+    throw new Error("The spreadsheet has no data rows.");
+  }
+
+  const columns = Object.keys(rawRows[0]);
+  if (!columns.includes("Name")) {
+    throw new Error('Your spreadsheet must have a column named exactly "Name".');
+  }
+
+  let dropped = 0;
+  const rows = [];
+  for (const raw of rawRows) {
+    const row = {};
+    for (const col of columns) {
+      row[col] = typeof raw[col] === "string" ? raw[col].trim() : raw[col];
+    }
+    if (!row.Name) {
+      dropped += 1;
+      continue;
+    }
+    rows.push(row);
+  }
+
+  if (rows.length === 0) {
+    throw new Error("No rows have a name.");
+  }
+
+  return { columns, rows, dropped };
+}

@@ -26,6 +26,14 @@ export function renderHtml(templateStr, row) {
   return compiled(row);
 }
 
+// Mark a value as already-safe HTML so Handlebars inserts it verbatim. Needed
+// for data: URIs — escaping turns the "=" padding on base64 into "&#x3D;" and
+// the browser then refuses to decode the image. Only use this for values we
+// generate ourselves, never for spreadsheet content.
+export function safeHtml(value) {
+  return new Handlebars.SafeString(value);
+}
+
 export function clearTemplateCache() {
   compileCache.clear();
 }

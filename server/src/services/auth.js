@@ -17,6 +17,15 @@ export const authConfigured = Boolean(CLIENT_ID && CLIENT_SECRET && REDIRECT_URI
 
 const oauthClient = authConfigured ? new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI) : null;
 
+// Skips Google sign-in entirely for local development, where the redirect
+// URI (fixed to the production domain) can't come back to localhost anyway.
+// Double-gated on purpose: NODE_ENV=production is set explicitly by the
+// deployed systemd unit (deploy/bulk-mailer.service), so setting
+// DEV_SKIP_AUTH=true in a local .env can never accidentally open the
+// production server — it would need NODE_ENV unset too.
+export const devAuthBypass = process.env.NODE_ENV !== "production" && process.env.DEV_SKIP_AUTH === "true";
+export const devAuthEmail = process.env.DEV_SKIP_AUTH_EMAIL || [...ALLOWED_EMAILS][0] || "dev@localhost";
+
 export function isEmailAllowed(email) {
   return ALLOWED_EMAILS.has(String(email || "").toLowerCase());
 }

@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body { margin: 0; padding: 0; }
+      .card {
+        position: relative;
+        width: 763px;
+        height: 1081px;
+        background-image: url("{{FrameDataUri}}");
+        background-size: 763px 1081px;
+        background-repeat: no-repeat;
+        font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      }
+      .photo {
+        position: absolute;
+        left: 145px;
+        top: 230px;
+        width: 431px;
+        height: 431px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #f4f1e9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .photo .placeholder {
+        color: #cfa93c;
+        font-size: 160px;
+        font-weight: 700;
+      }
+      .name {
+        position: absolute;
+        left: 0;
+        top: 700px;
+        width: 727px;
+        height: 75px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        color: #111;
+        text-transform: uppercase;
+      }
+      .role {
+        position: absolute;
+        left: 0;
+        top: 805px;
+        width: 727px;
+        height: 55px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 700;
+        color: #111;
+        text-transform: uppercase;
+      }
+      .signature {
+        position: absolute;
+        left: 45px;
+        top: 880px;
+        width: 640px;
+        height: 168px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .signature img { width: 100%; height: 100%; object-fit: contain; }
+      .signature .line {
+        width: 100%;
+        border-top: 1.5px solid #333;
+        padding-top: 6px;
+        text-align: center;
+        font-size: 13px;
+        letter-spacing: 1px;
+        color: #777;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="photo">
+        {{#if PhotoDataUri}}
+          <img src="{{PhotoDataUri}}" style="object-position: {{PhotoFocusX}}% {{PhotoFocusY}}%;" />
+        {{else}}
+          <div class="placeholder">?</div>
+        {{/if}}
+      </div>
+      <div class="name">{{Name}}</div>
+      <div class="role">{{Role}}</div>
+      <div class="signature">
+        {{#if SignatureDataUri}}
+          <img src="{{SignatureDataUri}}" />
+        {{else}}
+          <div class="line">Signature</div>
+        {{/if}}
+      </div>
+    </div>
+  </body>
+</html>

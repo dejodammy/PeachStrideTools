@@ -15,6 +15,8 @@ npm-debug.log*
 # Local env files (never commit SMTP credentials)
 .env
 .env.local
+.env.*
+!.env.example
 
 # Personal test/demo spreadsheet (contains a real email address)
 demo_recipients.xlsx
@@ -41,3 +43,16 @@ server/data/extractions/*
 # Python
 __pycache__/
 *.pyc
+
+# Staff photos, signatures, rosters and working files for ID cards and HR
+# tasks. Real people's data: keep it local, never in this (public) repo.
+/demo-idcards/
+/ID CARDS */
+/*.xlsx
+/*.xls
+/*.csv
+/*.zip
+/*.pdf
+/*.png
+/*.jpg
+/*.jpeg

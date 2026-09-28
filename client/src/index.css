@@ -1358,3 +1358,286 @@ tbody tr.row-flagged:hover td {
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* ---------- ID cards ---------- */
+
+.idcards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* One image, one question: who is this. */
+.identify {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+.identify-image {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.identify-image img {
+  max-width: 100%;
+  max-height: 340px;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+.identify-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.identify-filename {
+  font-size: 12px;
+  color: var(--ink-500);
+  word-break: break-all;
+}
+
+.identify-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.identify-search {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 15px;
+  color: var(--ink-900);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.identify-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.identify-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.identify-person {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 13px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.identify-person:last-child {
+  border-bottom: none;
+}
+
+.identify-person:hover {
+  background: var(--accent-soft);
+}
+
+/* The row Enter will pick. */
+.identify-person.top-match {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.identify-person-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.identify-person-role {
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+.identify-person-flag {
+  font-size: 11px;
+  color: var(--warn, #9a6b00);
+}
+
+.identify-person.filled .identify-person-name {
+  color: var(--ink-500);
+}
+
+/* Shows the card's real crop, so what you see here is what prints. */
+.face-circle {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.face-circle.draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.face-circle.draggable:active {
+  cursor: grabbing;
+  border-color: var(--accent);
+}
+
+.face-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.face-circle-empty {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink-300);
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.review-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.review-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.review-signature {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-signature img {
+  max-height: 34px;
+  max-width: 130px;
+  object-fit: contain;
+}
+
+.review-missing {
+  font-size: 11px;
+  color: var(--ink-300);
+}
+
+.review-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.review-actions .link-button {
+  font-size: 11.5px;
+}
+
+.idcard-preview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--ink-500);
+}
+
+.idcard-preview-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.idcards-photo-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink-700);
+  cursor: pointer;
+}
+
+.idcards-photo-option input { accent-color: var(--accent); }
+
+.idcard-preview-image {
+  display: block;
+  max-width: 360px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.brand-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.brand-option {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 18px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-500);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.brand-option:hover {
+  color: var(--heading);
+  border-color: var(--ink-500);
+}
+
+.brand-option.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+@media (max-width: 900px) {
+  .identify {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

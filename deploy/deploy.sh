@@ -4,7 +4,7 @@
 #   bash ~/PeachStrideTools/deploy/deploy.sh
 #
 # The GitHub Action (.github/workflows/deploy.yml) runs this on every push to
-# master, so this normally happens automatically.
+# master, once the SSH_HOST / SSH_USER / SSH_KEY secrets are set.
 
 set -euo pipefail
 
@@ -14,11 +14,11 @@ cd "$APP_DIR"
 echo "==> Pulling latest"
 git pull --ff-only
 
-echo "==> Installing dependencies"
-npm run setup
+echo "==> Installing server dependencies"
+(cd server && npm ci --omit=dev)
 
 echo "==> Building client"
-npm run build
+(cd client && npm ci && npm run build)
 
 echo "==> Restarting service"
 sudo systemctl restart bulk-mailer
